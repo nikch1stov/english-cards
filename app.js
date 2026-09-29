@@ -375,15 +375,22 @@ function showSplash() {
       <p class="splash-hint">Нажми, чтобы начать</p>
     </div>`;
   document.body.append(el);
-  let timer = setTimeout(close, 3200);
+  let timer = setTimeout(close, 6000);
   function close() {
     if (el.classList.contains('out')) return;
     clearTimeout(timer);
     el.classList.add('out');
     setTimeout(() => el.remove(), 450);
   }
-  el.addEventListener('click', e => {
-    if (e.target.closest('[data-speak]')) { clearTimeout(timer); timer = setTimeout(close, 4000); return; }
+  // The speaker gets its own listener: iOS only turns a tap into a click on elements it considers clickable.
+  const speaker = el.querySelector('[data-speak]');
+  speaker.addEventListener('click', e => {
+    e.stopPropagation();
+    speak(en, speaker);
+    clearTimeout(timer);
+    timer = setTimeout(close, 6000);
+  });
+  el.addEventListener('click', () => {
     haptic();
     close();
   });

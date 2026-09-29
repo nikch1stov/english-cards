@@ -544,7 +544,7 @@ body[data-screen="stats"] #app > .segmented { background: color-mix(in srgb, var
 }
 .btn, .list-row, #tabs [data-go] { position: relative; -webkit-user-select: none; user-select: none; }
 .speak-btn, .flash .icon-btn { position: relative; z-index: 2; }
-#splash .splash-inner { pointer-events: none; }
+#splash .splash-inner { z-index: 2; pointer-events: none; }
 #splash .speak-btn { pointer-events: auto; }
 
 /* ---------- splash ---------- */

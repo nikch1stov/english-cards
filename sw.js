@@ -1,4 +1,4 @@
-const CACHE = 'english-cards-v12';
+const CACHE = 'english-cards-v14';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'core.js', 'mascot.js', 'cloud.js', 'config.js', 'manifest.webmanifest', 'icon.svg', 'icon-180.png', 'words.md'];
 
 self.addEventListener('install', e => {
