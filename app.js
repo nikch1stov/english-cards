@@ -8,6 +8,7 @@ const SCREEN_KEY = 'english-cards:screen';
 const GREET_KEY = 'english-cards:greet';
 const GREETED_KEY = 'english-cards:greeted';
 const LETTER_KEY = 'english-cards:letter';
+const OWNER_KEY = 'english-cards:owner';
 const THEMES = { auto: 'Авто', light: 'Светлая', dark: 'Тёмная' };
 const THEME_COLORS = { light: '#f5f5fa', dark: '#0a0a0f' };
 const SYNC_LABELS = { idle: '', saving: 'Сохраняю…', saved: 'Сохранено в облаке', error: 'Нет связи — сохраню позже' };
@@ -375,10 +376,8 @@ function showSplash() {
       <p class="splash-hint">Нажми, чтобы начать</p>
     </div>`;
   document.body.append(el);
-  let timer = setTimeout(close, 6000);
   function close() {
     if (el.classList.contains('out')) return;
-    clearTimeout(timer);
     el.classList.add('out');
     setTimeout(() => el.remove(), 450);
   }
@@ -387,8 +386,6 @@ function showSplash() {
   speaker.addEventListener('click', e => {
     e.stopPropagation();
     speak(en, speaker);
-    clearTimeout(timer);
-    timer = setTimeout(close, 6000);
   });
   el.addEventListener('click', () => {
     haptic();
@@ -414,6 +411,23 @@ function schedulePush() {
   }, 1500);
 }
 
+const needsLogin = () => cloudEnabled && !user;
+
+// Progress on this device belongs to one account. Pre-login progress (no owner yet) is adopted by the
+// first account that signs in; a different account starts from a clean slate instead of inheriting it.
+function claimLocalState(uid) {
+  let owner = null;
+  try { owner = localStorage.getItem(OWNER_KEY); } catch {}
+  if (owner && owner !== uid) resetLocalProgress();
+  try { localStorage.setItem(OWNER_KEY, uid); } catch {}
+}
+
+function resetLocalProgress() {
+  state = { settings: state.settings, progress: { 'en-ru': {}, 'ru-en': {} }, days: {} };
+  saveLocal();
+  try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+}
+
 async function syncNow() {
   if (!user) return;
   setSync('saving');
@@ -425,34 +439,101 @@ async function syncNow() {
     applyTheme();
     await pushState(user.id, state);
     setSync('saved');
-    if (screen !== 'study') SCREENS[screen]();
+    if (screen && screen !== 'study' && !needsLogin()) SCREENS[screen]();
   } catch {
     setSync('error');
   }
 }
 
+// When the Supabase library can't load (offline, first launch cached), trust the session it saved earlier.
+function savedSessionUser() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k.startsWith('sb-') && k.endsWith('-auth-token')) return JSON.parse(localStorage.getItem(k))?.user || null;
+    }
+  } catch {}
+  return null;
+}
+
+function onSignedIn(event) {
+  claimLocalState(user.id);
+  pulled = false;
+  setTimeout(syncNow, 0);
+  if (event === 'SIGNED_IN') toast(`Привет, ${userProfile(user).name.split(' ')[0]}!`, 'happy');
+}
+
 async function initCloud() {
   if (!cloudEnabled) return;
+  let sb;
   try {
-    const sb = await getClient();
-    sb.auth.onAuthStateChange((event, sess) => {
-      const next = sess?.user || null;
-      if (next?.id === user?.id) { user = next; return; }
-      user = next;
-      pulled = false;
-      if (location.search.includes('code=')) history.replaceState(null, '', location.pathname);
-      // Supabase warns against awaiting its own calls inside this callback.
-      if (user) {
-        setTimeout(syncNow, 0);
-        if (event === 'SIGNED_IN') toast(`Привет, ${userProfile(user).name.split(' ')[0]}!`, 'happy');
-      } else {
-        setSync('idle');
-      }
-      if (screen === 'settings' || screen === 'home') SCREENS[screen]();
-    });
+    sb = await getClient();
   } catch {
+    user = savedSessionUser();
     setSync('error');
+    return;
   }
+  // Resolves after a Google redirect's ?code= has been exchanged for a session.
+  const { data, error } = await sb.auth.getSession();
+  user = data?.session?.user || null;
+  if (error || /[?&](code|error)=/.test(location.search)) {
+    if (!user && /[?&]error/.test(location.search)) setTimeout(() => toast('Вход не удался. Попробуй ещё раз', 'sad'), 300);
+    history.replaceState(null, '', location.pathname);
+  }
+  if (user) onSignedIn('INITIAL');
+  sb.auth.onAuthStateChange((event, sess) => {
+    const next = sess?.user || null;
+    if (next?.id === user?.id) { user = next; return; }
+    const wasGated = needsLogin();
+    user = next;
+    // Supabase warns against awaiting its own calls inside this callback.
+    if (user) {
+      onSignedIn(event);
+      if (wasGated) { try { sessionStorage.removeItem(SCREEN_KEY); } catch {} enterApp(); }
+      else if (screen === 'settings' || screen === 'home') SCREENS[screen]();
+    } else {
+      setSync('idle');
+      renderLogin();
+    }
+  });
+}
+
+async function logOut() {
+  if (!confirm('Выйти из аккаунта? Прогресс сохранится в облаке, а на этом телефоне будет очищен.')) return;
+  clearTimeout(pushTimer);
+  try {
+    if (pulled) await pushState(user.id, state);
+  } catch {
+    toast('Нет интернета — не могу сохранить прогресс перед выходом', 'sad');
+    return;
+  }
+  resetLocalProgress();
+  try { localStorage.removeItem(OWNER_KEY); } catch {}
+  await signOut();
+}
+
+function renderLogin() {
+  session = null;
+  screen = '';
+  tabs.hidden = true;
+  document.body.dataset.screen = 'login';
+  app.innerHTML = `
+    <section class="login">
+      <div class="login-mascot">${buddy('wave', 150, 'idle')}</div>
+      <h1>Добро пожаловать!</h1>
+      <p class="muted">Войди через Google, чтобы начать учить английские слова. Прогресс будет храниться в облаке — он не потеряется, даже если сменишь телефон.</p>
+      <label class="btn google block" role="button" data-action="signin">${HX()}${GOOGLE_ICON}Войти через Google</label>
+      <p class="login-note">Мы получаем только имя, почту и фото профиля.</p>
+    </section>`;
+  window.scrollTo(0, 0);
+}
+
+function enterApp() {
+  let last = 'home';
+  try { last = sessionStorage.getItem(SCREEN_KEY) || 'home'; } catch {}
+  session = restoreSession();
+  screen = '';
+  show(session ? 'study' : last === 'study' ? 'home' : last);
 }
 
 const GOOGLE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.6 12.3c0-.8-.1-1.5-.2-2.3H12v4.3h6a5.1 5.1 0 0 1-2.2 3.4v2.8h3.6c2.1-2 3.2-4.8 3.2-8.2z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.4-2.7l-3.6-2.8c-1 .7-2.3 1.1-3.8 1.1-2.9 0-5.4-2-6.3-4.6H2v2.9A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.7 14c-.2-.7-.4-1.3-.4-2s.1-1.4.4-2V7.1H2a11 11 0 0 0 0 9.8L5.7 14z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.3 1.7l3.2-3.2A11 11 0 0 0 2 7.1L5.7 10c.9-2.7 3.4-4.6 6.3-4.6z"/></svg>';
@@ -1058,6 +1139,7 @@ function renderSettings() {
 const SCREENS = { home: renderHome, study: renderStudy, stats: renderStats, settings: renderSettings, mistakes: renderMistakes, dict: renderDict };
 
 function show(name) {
+  if (needsLogin()) { renderLogin(); return; }
   const prev = screen;
   screen = SCREENS[name] ? name : 'home';
   if (screen !== 'study') session = null;
@@ -1107,12 +1189,7 @@ function act(el) {
     signInWithGoogle().catch(() => toast('Не получилось открыть вход. Попробуй ещё раз', 'sad'));
     return;
   }
-  if (d.action === 'signout') {
-    if (confirm('Выйти из аккаунта? Прогресс останется на этом телефоне и в облаке.')) {
-      signOut().then(() => toast('Ты вышел из аккаунта'));
-    }
-    return;
-  }
+  if (d.action === 'signout') { logOut(); return; }
   if (d.action === 'reload') { location.reload(); return; }
   if (d.action === 'reset') {
     if (confirm(`Сбросить весь прогресс по направлению ${DIRS[dir()]}?`)) {
@@ -1150,12 +1227,9 @@ async function init() {
   topics = [...byTopic].map(([name, list]) => ({ name, cards: list }));
 
   if (location.hash) history.replaceState(null, '', location.pathname);
-  session = restoreSession();
-  let last = 'home';
-  try { last = sessionStorage.getItem(SCREEN_KEY) || 'home'; } catch {}
-  screen = '';
-  show(session ? 'study' : last === 'study' ? 'home' : last);
-  initCloud();
+  await initCloud();
+  if (needsLogin()) renderLogin();
+  else enterApp();
 }
 
 if ('serviceWorker' in navigator && window.isSecureContext) {
