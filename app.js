@@ -207,6 +207,42 @@ function speak(text, btn) {
   synth.speak(u);
 }
 
+// ---------- alert ----------
+
+// An iOS-style alert. Resolves true when the person picks the action, false on «Отмена».
+function ask({ title, message = '', action, destructive = false }) {
+  return new Promise(resolve => {
+    const wrap = document.createElement('div');
+    wrap.className = 'alert-wrap';
+    wrap.innerHTML = `
+      <div class="alert" role="alertdialog" aria-modal="true" aria-labelledby="alert-title" aria-describedby="alert-text">
+        <h2 id="alert-title">${esc(title)}</h2>
+        ${message ? `<p id="alert-text">${esc(message)}</p>` : ''}
+        <div class="alert-actions">
+          <label class="alert-btn" role="button" data-alert="0">${HX()}Отмена</label>
+          <label class="alert-btn ${destructive ? 'destructive' : 'default'}" role="button" data-alert="1">${HX()}${esc(action)}</label>
+        </div>
+      </div>`;
+    const done = yes => {
+      if (wrap.classList.contains('out')) return;
+      wrap.classList.add('out');
+      removeEventListener('keydown', onKey);
+      setTimeout(() => wrap.remove(), 200);
+      resolve(yes);
+    };
+    const onKey = e => { if (e.key === 'Escape') done(false); };
+    wrap.addEventListener('click', e => {
+      const b = e.target.closest('[data-alert]');
+      if (!b) return;
+      e.stopPropagation();
+      if (!e.target.classList.contains('hx')) e.preventDefault();
+      done(b.dataset.alert === '1');
+    });
+    addEventListener('keydown', onKey);
+    document.body.append(wrap);
+  });
+}
+
 // ---------- toast & confetti ----------
 
 let toastTimer;
@@ -537,7 +573,7 @@ async function initCloud(clientReady) {
 }
 
 async function logOut() {
-  if (!confirm('Выйти из аккаунта? Прогресс сохранится в облаке, а на этом телефоне будет очищен.')) return;
+  if (!await ask({ title: 'Выйти из аккаунта?', message: 'Прогресс сохранится в облаке, а с этого телефона будет удалён.', action: 'Выйти', destructive: true })) return;
   clearTimeout(pushTimer);
   try {
     if (!pulled) state = mergeState(state, await pullState(user.id));
@@ -597,7 +633,7 @@ function accountSection() {
         <span class="list-main"><span class="list-title">${esc(p.name)}</span><span class="list-sub">${esc(p.email)}</span></span>
       </div>
       <div class="group-row"><span>Синхронизация</span><span id="sync-status" class="muted small">${SYNC_LABELS[syncStatus]}</span></div>
-      <button type="button" class="group-row link danger" data-action="signout">Выйти</button>
+      <button type="button" class="group-row link danger center" data-action="signout">Выйти</button>
     </section>`;
 }
 
@@ -626,11 +662,14 @@ function renderHome() {
 
   app.innerHTML = `
     <header class="hero-head">
-      <div>
+      <div class="head-row">
         <p class="eyebrow">${greeting()}${user ? `, ${esc(userProfile(user).name.split(' ')[0])}` : ''}</p>
-        <h1>Учим английский</h1>
+        <div class="head-actions">
+          <span class="streak ${s ? 'on' : ''}" aria-label="Серия: ${s} ${plural(s, 'день', 'дня', 'дней')} подряд">${ICONS.flame}${s}</span>
+          ${ADD_BTN()}
+        </div>
       </div>
-      <span class="streak ${s ? 'on' : ''}" aria-label="Серия дней">${ICONS.flame}${s}</span>
+      <h1>Учим английский</h1>
     </header>
 
     <section class="hero card-surface">
@@ -971,7 +1010,7 @@ function renderStats() {
     </section>
 
     <div class="segmented" role="tablist">
-      ${RANGES.map(r => `<button type="button" class="${range === r ? 'on' : ''}" data-range="${r}">${r} дней</button>`).join('')}
+      ${RANGES.map(r => `<button type="button" class="${range === r ? 'on' : ''}" aria-pressed="${range === r}" data-range="${r}">${r} дней</button>`).join('')}
     </div>
 
     <section class="card-surface pad">
@@ -1061,20 +1100,20 @@ function renderOnboarding() {
   const name = user ? userProfile(user).name.split(' ')[0] : '';
   const dots = Array.from({ length: OB_STEPS }, (_, i) => `<i class="${i <= ob.step ? 'on' : ''}"></i>`).join('');
   const back = ob.step > 0
-    ? `<button type="button" class="icon-btn" data-ob="back" aria-label="Назад">${ICONS.back}</button>`
-    : ob.again ? `<button type="button" class="icon-btn" data-ob="close" aria-label="Закрыть">${ICONS.close}</button>` : '<span class="icon-spacer"></span>';
-  let head, body, next = 'Дальше';
+    ? `<button type="button" class="bar-btn" data-ob="back">${ICONS.back}Назад</button>`
+    : ob.again ? '<button type="button" class="bar-btn" data-ob="close">Отменить</button>' : '<span></span>';
+  let head, body, next = 'Продолжить';
 
   if (ob.step === 0) {
     head = { mood: 'wave', title: ob.again ? 'Что для тебя важно?' : `Привет${name ? `, ${esc(name)}` : ''}! Я ${LETTER === 'A' ? 'Эй' : LETTERS[LETTER]?.name || LETTER}`, sub: ob.again ? 'Можно выбрать несколько целей' : 'Подберу слова под тебя. Для чего тебе английский? Можно выбрать несколько.' };
     body = `<div class="ob-grid">${Object.entries(GOALS).map(([k, g]) => `
-      <label class="ob-tile ${ob.goals.has(k) ? 'on' : ''}" role="button" data-ob="goal:${k}">${HX()}
+      <label class="ob-tile ${ob.goals.has(k) ? 'on' : ''}" role="button" aria-pressed="${ob.goals.has(k)}" data-ob="goal:${k}">${HX()}
         <span class="ob-emoji">${g.icon}</span><span>${g.label}</span><span class="ob-check">${ICONS.check}</span>
       </label>`).join('')}</div>`;
   } else if (ob.step === 1) {
     head = { mood: 'happy', title: 'Какой у тебя уровень?', sub: 'От этого зависит, с чего начнём и сколько слов давать в день.' };
     body = `<div class="ob-list">${Object.entries(LEVELS).map(([k, l]) => `
-      <label class="ob-option ${ob.level === k ? 'on' : ''}" role="button" data-ob="level:${k}">${HX()}
+      <label class="ob-option ${ob.level === k ? 'on' : ''}" role="button" aria-pressed="${ob.level === k}" data-ob="level:${k}">${HX()}
         <span class="list-main"><span class="list-title">${l.title}</span><span class="list-sub">${l.sub}</span></span>
         <span class="ob-radio"></span>
       </label>`).join('')}</div>`;
@@ -1083,11 +1122,11 @@ function renderOnboarding() {
     body = `
       <div class="ob-bar"><span id="ob-count" class="muted small">${obCountLabel()}</span><button type="button" class="link-btn" data-ob="all">${obAllPicked() ? 'Снять все' : 'Выбрать все'}</button></div>
       <div class="ob-chips">${topics.filter(t => !t.mine).map(t => `
-        <label class="ob-chip ${ob.topics.has(t.name) ? 'on' : ''}" role="button" data-ob="topic:${esc(t.name)}">${HX()}${esc(t.name)}</label>`).join('')}</div>`;
+        <label class="ob-chip ${ob.topics.has(t.name) ? 'on' : ''}" role="button" aria-pressed="${ob.topics.has(t.name)}" data-ob="topic:${esc(t.name)}">${HX()}${esc(t.name)}</label>`).join('')}</div>`;
   } else {
     head = { mood: 'happy', title: 'Сколько времени в день?', sub: 'Новые слова плюс повторение старых. Это можно поменять в любой момент.' };
     body = `<div class="ob-list">${PACES.map(p => `
-      <label class="ob-option ${ob.perDay === p.n ? 'on' : ''}" role="button" data-ob="pace:${p.n}">${HX()}
+      <label class="ob-option ${ob.perDay === p.n ? 'on' : ''}" role="button" aria-pressed="${ob.perDay === p.n}" data-ob="pace:${p.n}">${HX()}
         <span class="list-main"><span class="list-title">${p.title}</span><span class="list-sub">${p.sub}</span></span>
         <span class="ob-radio"></span>
       </label>`).join('')}</div>`;
@@ -1096,7 +1135,7 @@ function renderOnboarding() {
 
   app.innerHTML = `
     <section class="ob" data-step="${ob.step}">
-      <header class="ob-top">${back}<div class="ob-dots">${dots}</div><span class="icon-spacer"></span></header>
+      <header class="ob-top">${back}<div class="ob-dots" role="img" aria-label="Шаг ${ob.step + 1} из ${OB_STEPS}">${dots}</div><span></span></header>
       <div class="ob-head">
         <div class="ob-mascot">${buddy(head.mood, 92, 'idle')}</div>
         <h1>${head.title}</h1>
@@ -1115,6 +1154,8 @@ function obCountLabel() {
   return `${n} ${plural(n, 'тема', 'темы', 'тем')} · ${w} ${plural(w, 'слово', 'слова', 'слов')}`;
 }
 
+const setOn = (el, on) => { el.classList.toggle('on', on); el.setAttribute('aria-pressed', on); };
+
 function obAction(a, el) {
   if (!ob) startOnboarding(false);
   const [kind, ...rest] = a.split(':');
@@ -1125,7 +1166,7 @@ function obAction(a, el) {
   if (kind === 'back') { ob.step = Math.max(0, ob.step - 1); renderOnboarding(); return; }
   if (kind === 'goal') {
     ob.goals.has(val) ? ob.goals.delete(val) : ob.goals.add(val);
-    el.classList.toggle('on', ob.goals.has(val));
+    setOn(el, ob.goals.has(val));
     ob.topicsTouched = false;
     return;
   }
@@ -1133,14 +1174,14 @@ function obAction(a, el) {
     ob.level = val;
     ob.perDay = LEVELS[val].perDay;
     ob.topicsTouched = false;
-    app.querySelectorAll('[data-ob^="level:"]').forEach(x => x.classList.toggle('on', x === el));
+    app.querySelectorAll('[data-ob^="level:"]').forEach(x => setOn(x, x === el));
     setTimeout(() => { if (ob?.step === 1) { ob.step = 2; ob.topics = suggestTopics(); renderOnboarding(); } }, 280);
     return;
   }
   if (kind === 'topic') {
     ob.topics.has(val) ? ob.topics.delete(val) : ob.topics.add(val);
     ob.topicsTouched = true;
-    el.classList.toggle('on', ob.topics.has(val));
+    setOn(el, ob.topics.has(val));
     obRefreshCount();
     return;
   }
@@ -1153,7 +1194,7 @@ function obAction(a, el) {
   }
   if (kind === 'pace') {
     ob.perDay = Number(val);
-    app.querySelectorAll('[data-ob^="pace:"]').forEach(x => x.classList.toggle('on', x === el));
+    app.querySelectorAll('[data-ob^="pace:"]').forEach(x => setOn(x, x === el));
     return;
   }
   if (kind === 'next') {
@@ -1202,13 +1243,14 @@ function wordStatus(c) {
   return s.ivl >= LEARNED_IVL ? 'learned' : 'learning';
 }
 
+const ADD_BTN = () => `<label class="icon-btn tinted" role="button" data-go="word" aria-label="Добавить слово">${HX()}${ICONS.plus}</label>`;
 const statusDot = c => { const st = wordStatus(c); return `<i class="dot ${st}" title="${DICT_FILTERS[st]}"></i>`; };
 
 function renderDict() {
   app.innerHTML = `
     <header class="page-head">
       <h1>Словарь</h1>
-      <label class="btn add-btn" role="button" data-edit="">${HX()}${ICONS.plus}Слово</label>
+      ${ADD_BTN()}
     </header>
     ${topics.some(t => t.mine) ? '' : `
       <label class="my-cta card-surface" role="button" data-edit="">${HX()}
@@ -1218,12 +1260,12 @@ function renderDict() {
           <span class="list-sub">Добавь слова из фильмов, книг и работы — они попадут в урок первыми</span>
         </span>
       </label>`}
-    <label class="search card-surface">
+    <label class="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      <input id="dict-q" type="search" placeholder="Найти слово или перевод" value="${esc(dictQuery)}" autocomplete="off" autocorrect="off" spellcheck="false">
+      <input id="dict-q" type="search" placeholder="Поиск" aria-label="Поиск по словарю" value="${esc(dictQuery)}" autocomplete="off" autocorrect="off" spellcheck="false">
     </label>
     <div class="segmented">
-      ${Object.entries(DICT_FILTERS).map(([k, v]) => `<button type="button" class="${dictFilter === k ? 'on' : ''}" data-dict-filter="${k}">${v}</button>`).join('')}
+      ${Object.entries(DICT_FILTERS).map(([k, v]) => `<button type="button" class="${dictFilter === k ? 'on' : ''}" aria-pressed="${dictFilter === k}" data-dict-filter="${k}">${v}</button>`).join('')}
     </div>
     <div id="dict-list" class="dict-list"></div>`;
   renderDictList();
@@ -1286,23 +1328,31 @@ function renderWord() {
       <input id="f-${k}" value="${v(k)}" placeholder="${ph}" autocomplete="off" spellcheck="false" ${attrs}>
     </label>`;
   app.innerHTML = `
-    <header class="study-top">
-      <button type="button" class="icon-btn" data-go="${wordBack}" aria-label="Закрыть">${ICONS.close}</button>
-      <h1 class="h3 grow">${w ? 'Изменить слово' : 'Новое слово'}</h1>
-    </header>
+    <div class="sheet">
+      <header class="sheet-bar">
+        <button type="button" class="bar-btn" data-go="${wordBack}">Отменить</button>
+        <h1 class="sheet-title">${w ? 'Изменить слово' : 'Новое слово'}</h1>
+        <label class="bar-btn strong" role="button" data-action="save-word">${HX()}${w ? 'Готово' : 'Добавить'}</label>
+      </header>
 
-    <section class="card-surface form">
-      ${field('word', 'Слово на английском', 'например, sunshine', 'autocapitalize="off" autocorrect="off" lang="en"')}
-      ${field('translation', 'Перевод', 'например, солнечный свет', 'lang="ru"')}
-      <label class="btn soft block" role="button" data-action="autofill">${HX()}${ICONS.sparkle}<span>Подсказать перевод и пример</span></label>
-      ${field('ipa', 'Транскрипция', '[ˈsʌnʃaɪn]', 'autocapitalize="off" autocorrect="off"')}
-      ${field('exEn', 'Пример', 'The sunshine is warm today.', 'autocapitalize="sentences" lang="en"')}
-      ${field('exRu', 'Перевод примера', 'Сегодня тёплое солнце.', 'lang="ru"')}
-    </section>
-    <p class="group-note">Обязательны только слово и перевод. Подсказка работает через интернет — проверь её, прежде чем сохранить.</p>
+      <section class="card-surface form">
+        ${field('word', 'Слово на английском', 'например, sunshine', 'autocapitalize="off" autocorrect="off" lang="en"')}
+        ${field('translation', 'Перевод', 'например, солнечный свет', 'lang="ru"')}
+      </section>
+      <section class="card-surface group">
+        <label class="group-row link" role="button" data-action="autofill">${HX()}${ICONS.sparkle}<span>Подсказать перевод и пример</span></label>
+      </section>
+      <p class="group-note">Подсказка работает через интернет — проверь её, прежде чем сохранить.</p>
 
-    <label class="btn primary block" role="button" data-action="save-word">${HX()}${w ? 'Сохранить' : 'Добавить в словарь'}</label>
-    ${w ? '<button type="button" class="btn ghost-danger block" data-action="delete-word">Удалить слово</button>' : ''}`;
+      <h2 class="group-title">Необязательно</h2>
+      <section class="card-surface form">
+        ${field('ipa', 'Транскрипция', '[ˈsʌnʃaɪn]', 'autocapitalize="off" autocorrect="off"')}
+        ${field('exEn', 'Пример', 'The sunshine is warm today.', 'autocapitalize="sentences" lang="en"')}
+        ${field('exRu', 'Перевод примера', 'Сегодня тёплое солнце.', 'lang="ru"')}
+      </section>
+
+      ${w ? '<section class="card-surface group"><button type="button" class="group-row link danger center" data-action="delete-word">Удалить слово</button></section>' : ''}
+    </div>`;
   if (!w) setTimeout(() => document.getElementById('f-word')?.focus(), 350);
 }
 
@@ -1314,7 +1364,7 @@ function openWord(id) {
 
 const readForm = () => Object.fromEntries(WORD_FIELDS.map(k => [k, (document.getElementById(`f-${k}`)?.value || '').trim()]));
 
-function saveWord() {
+async function saveWord() {
   const f = readForm();
   if (!f.word || !f.translation) {
     haptic('error');
@@ -1325,7 +1375,7 @@ function saveWord() {
   if (f.ipa && !/^[[/]/.test(f.ipa)) f.ipa = `[${f.ipa}]`;
   const key = f.word.toLowerCase();
   const twin = cards.find(c => c.word.toLowerCase() === key && c.id !== editingId);
-  if (twin && !confirm(`«${twin.word}» уже есть в словаре (${twin.topic}: ${twin.translation}). Всё равно добавить?`)) return;
+  if (twin && !await ask({ title: `«${twin.word}» уже есть в словаре`, message: `${twin.topic}: ${twin.translation}`, action: 'Добавить' })) return;
 
   const now = Date.now();
   const id = editingId || `my:${now.toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -1340,9 +1390,9 @@ function saveWord() {
   show('dict');
 }
 
-function deleteWord() {
+async function deleteWord() {
   const w = state.mine[editingId];
-  if (!w || !confirm(`Удалить «${w.word}» из словаря? Прогресс по этому слову тоже удалится.`)) return;
+  if (!w || !await ask({ title: `Удалить «${w.word}»?`, message: 'Слово и прогресс по нему удалятся.', action: 'Удалить', destructive: true })) return;
   state.mine[editingId] = { deleted: true, updated: Date.now() };
   for (const d of Object.keys(state.progress)) delete state.progress[d][editingId];
   saveState();
@@ -1447,7 +1497,7 @@ function renderSettings() {
       <div class="group-row stack">
         <span>Тема</span>
         <div class="segmented">
-          ${Object.entries(THEMES).map(([k, v]) => `<button type="button" class="${state.settings.theme === k ? 'on' : ''}" data-set-theme="${k}">${v}</button>`).join('')}
+          ${Object.entries(THEMES).map(([k, v]) => `<button type="button" class="${state.settings.theme === k ? 'on' : ''}" aria-pressed="${state.settings.theme === k}" data-set-theme="${k}">${v}</button>`).join('')}
         </div>
       </div>
       <div class="group-row">
@@ -1460,17 +1510,17 @@ function renderSettings() {
 
     <h2 class="group-title">Обучение</h2>
     <section class="card-surface group">
-      <button type="button" class="group-row link" data-ob="restart"><span>Цели и темы</span><span class="muted small">${planLabel()}</span></button>
+      <button type="button" class="group-row nav" data-ob="restart"><span>Цели и темы</span><span class="row-value">${planLabel()}<span class="chev">${ICONS.chevron}</span></span></button>
       <div class="group-row stack">
         <span>Направление карточек</span>
         <div class="segmented">
-          ${Object.entries(DIRS).map(([k, v]) => `<button type="button" class="${dir() === k ? 'on' : ''}" data-dir="${k}">${v}</button>`).join('')}
+          ${Object.entries(DIRS).map(([k, v]) => `<button type="button" class="${dir() === k ? 'on' : ''}" aria-pressed="${dir() === k}" data-dir="${k}">${v}</button>`).join('')}
         </div>
       </div>
       <div class="group-row stack">
         <span>Новых слов в день</span>
         <div class="segmented">
-          ${NEW_OPTIONS.map(n => `<button type="button" class="${state.settings.newPerDay === n ? 'on' : ''}" data-new="${n}">${n}</button>`).join('')}
+          ${NEW_OPTIONS.map(n => `<button type="button" class="${state.settings.newPerDay === n ? 'on' : ''}" aria-pressed="${state.settings.newPerDay === n}" data-new="${n}">${n}</button>`).join('')}
         </div>
       </div>
     </section>
@@ -1491,10 +1541,19 @@ function renderSettings() {
     </section>
 
     <section class="card-surface group">
-      <button type="button" class="group-row link danger" data-action="reset">Сбросить прогресс ${DIRS[dir()]}</button>
+      <button type="button" class="group-row link danger center" data-action="reset">Сбросить прогресс ${DIRS[dir()]}</button>
     </section>
 
     <div class="about">${mascot('happy', 44)}<span class="muted small">English Cards · маскот Эй</span></div>`;
+}
+
+async function resetProgress() {
+  if (!await ask({ title: `Сбросить прогресс ${DIRS[dir()]}?`, message: 'Все ответы по этому направлению удалятся. Это нельзя отменить.', action: 'Сбросить', destructive: true })) return;
+  state.progress[dir()] = {};
+  for (const day of Object.values(state.days)) if (day.snap) delete day.snap[dir()];
+  saveState();
+  renderSettings();
+  toast('Прогресс сброшен');
 }
 
 // ---------- navigation ----------
@@ -1515,7 +1574,11 @@ function show(name) {
 
   const render = () => {
     tabs.hidden = ['study', 'word', 'onboarding', 'wait'].includes(screen);
-    tabs.querySelectorAll('[data-go]').forEach(b => b.classList.toggle('on', b.dataset.go === screen));
+    tabs.querySelectorAll('[data-go]').forEach(b => {
+      const on = b.dataset.go === screen;
+      b.classList.toggle('on', on);
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
     document.body.dataset.screen = screen;
     SCREENS[screen]();
     window.scrollTo(0, 0);
@@ -1576,16 +1639,7 @@ function act(el) {
   if (d.action === 'delete-word') { deleteWord(); return; }
   if (d.action === 'autofill') { autofill(el); return; }
   if (d.action === 'reload') { location.reload(); return; }
-  if (d.action === 'reset') {
-    if (confirm(`Сбросить весь прогресс по направлению ${DIRS[dir()]}?`)) {
-      state.progress[dir()] = {};
-      for (const day of Object.values(state.days)) if (day.snap) delete day.snap[dir()];
-      saveState();
-      renderSettings();
-      toast('Прогресс сброшен');
-    }
-    return;
-  }
+  if (d.action === 'reset') { resetProgress(); return; }
   if (d.reveal !== undefined && session && !session.revealed && !grading) {
     haptic();
     session.revealed = true;
