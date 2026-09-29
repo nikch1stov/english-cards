@@ -1,5 +1,5 @@
 import { parseWords, myCards, MY_TOPIC, dayKey, addDays, schedule, buildQueue, streak, dayHistory, mergeState, LEARNED_IVL } from './core.js?v=8';
-import { mascot, LETTERS } from './mascot.js?v=6';
+import { mascot, LETTERS } from './mascot.js?v=7';
 import { cloudEnabled, getClient, signInWithGoogle, signOut, pullState, pushState, userProfile } from './cloud.js?v=10';
 
 const STORE_KEY = 'english-cards:v1';
@@ -10,7 +10,7 @@ const GREETED_KEY = 'english-cards:greeted';
 const LETTER_KEY = 'english-cards:letter';
 const OWNER_KEY = 'english-cards:owner';
 const THEMES = { auto: 'Авто', light: 'Светлая', dark: 'Тёмная' };
-const THEME_COLORS = { light: '#f5f5fa', dark: '#0a0a0f' };
+const THEME_COLORS = { light: '#FFFCF6', dark: '#13110F' };
 const SYNC_LABELS = { idle: '', saving: 'Сохраняю…', saved: 'Сохранено в облаке', error: 'Нет связи — сохраню позже' };
 const DIRS = { 'en-ru': 'EN → RU', 'ru-en': 'RU → EN' };
 const NEW_OPTIONS = [5, 10, 20, 50];
@@ -178,7 +178,7 @@ function ring(pct, size, stroke, cls = '') {
     <svg class="ring ${cls}" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">
       <circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="ring-track" stroke-width="${stroke}"/>
       <circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="ring-fill" stroke-width="${stroke}"
-        stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>
+        stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" style="--from:${c.toFixed(2)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>
     </svg>`;
 }
 
@@ -226,7 +226,7 @@ function toast(text, mood) {
 
 function confetti() {
   if (REDUCED_MOTION.matches) return;
-  const colors = ['#FFB829', '#FF8A3D', '#FFD66B', '#10b981', '#38bdf8', '#ec4899'];
+  const colors = ['#FFD16B', '#FF6D47', '#FFD16B', '#FF6D47', '#FFF2D6'];
   const box = document.createElement('div');
   box.className = 'confetti';
   box.innerHTML = Array.from({ length: 48 }, (_, i) => {
@@ -763,11 +763,13 @@ function renderStudy() {
   const transBlock = `<div class="translation">${esc(card.translation)}</div>`;
   const isNew = !progress()[card.id];
   const pct = session.total ? (session.done / session.total) * 100 : 0;
+  const fromPct = session.pct ?? pct;
+  session.pct = pct;
 
   app.innerHTML = `
     <header class="study-top">
       <button type="button" class="icon-btn" data-go="home" aria-label="Закрыть урок">${ICONS.close}</button>
-      <div class="progress" role="progressbar" aria-valuenow="${session.done}" aria-valuemax="${session.total}"><span style="width:${pct}%"></span></div>
+      <div class="progress" role="progressbar" aria-valuenow="${session.done}" aria-valuemax="${session.total}"><span style="width:${fromPct}%"></span></div>
       <span class="muted num small">${session.done}/${session.total}</span>
     </header>
 
@@ -800,6 +802,7 @@ function renderStudy() {
       ` : `<label class="btn primary block" role="button" data-reveal>${HX()}Показать ответ</label>`}
     </footer>`;
   session.enter = false;
+  if (fromPct !== pct) requestAnimationFrame(() => requestAnimationFrame(() => { const bar = app.querySelector('.progress > span'); if (bar) bar.style.width = `${pct}%`; }));
 }
 
 function grade(known) {
@@ -836,6 +839,30 @@ function grade(known) {
   session.enter = true;
   saveSession();
   renderStudy();
+}
+
+// The chosen button's colour swells out from behind it while the card leaves, then the next card comes in.
+let grading = false;
+function pressGrade(btn, known) {
+  if (grading || !session?.queue.length) return;
+  const go = () => { grading = false; if (screen === 'study' && session?.queue.length) grade(known); };
+  if (REDUCED_MOTION.matches) { go(); return; }
+  grading = true;
+  bloom(btn);
+  btn.classList.add('hit');
+  btn.parentElement.classList.add('chosen');
+  app.querySelector('.flash')?.classList.add(known ? 'leave-yes' : 'leave-no');
+  setTimeout(go, 240);
+}
+
+// Lives outside #app, behind it, so it keeps growing after the lesson screen is redrawn.
+function bloom(btn) {
+  const r = btn.getBoundingClientRect();
+  const el = document.createElement('span');
+  el.className = 'bloom';
+  el.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;background:${getComputedStyle(btn).backgroundColor}`;
+  document.body.append(el);
+  setTimeout(() => el.remove(), 700);
 }
 
 // Half a turn away, swap in the back side, then the other half turn in.
@@ -895,13 +922,8 @@ function lineChart(data) {
   const last = pts('learned').at(-1);
   return `
     <svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Динамика выученных слов">
-      <defs>
-        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" class="stop-a"/><stop offset="1" class="stop-b"/>
-        </linearGradient>
-      </defs>
       ${grid}
-      <path d="${learned} L${x(data.length - 1)},${y(0)} L${x(0)},${y(0)} Z" fill="url(#areaGrad)"/>
+      <path d="${learned} L${x(data.length - 1)},${y(0)} L${x(0)},${y(0)} Z" class="area"/>
       <path d="${smoothPath(pts('started'))}" class="line started"/>
       <path d="${learned}" class="line learned"/>
       <circle cx="${last[0]}" cy="${last[1]}" r="4" class="end-dot"/>
@@ -1502,7 +1524,24 @@ function show(name) {
   else render();
 }
 
+// A finger that lands on the page while it is still gliding (or drags before lifting) is scrolling, not pressing.
+// The touchstart listener also lets iPhone show the :active pressed state.
+let touch = null;
+let lastScroll = -Infinity;
+addEventListener('scroll', () => { lastScroll = performance.now(); }, { capture: true, passive: true });
+addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  const now = performance.now();
+  touch = { x: t.clientX, y: t.clientY, at: now, moved: false, gliding: now - lastScroll < 100 };
+}, { capture: true, passive: true });
+addEventListener('touchmove', e => {
+  const t = e.touches[0];
+  if (touch && Math.hypot(t.clientX - touch.x, t.clientY - touch.y) > 8) touch.moved = true;
+}, { capture: true, passive: true });
+const scrollTap = () => !!touch && performance.now() - touch.at < 1500 && (touch.moved || touch.gliding);
+
 document.addEventListener('click', e => {
+  if (scrollTap()) return;
   const el = e.target.closest('[data-speak],[data-grade],[data-study],[data-go],[data-dir],[data-new],[data-range],[data-set-theme],[data-haptics],[data-dict-filter],[data-edit],[data-ob],[data-action],[data-reveal]');
   if (!el) return;
   // A tap on the invisible switch must keep its default action — that toggle is what vibrates the iPhone.
@@ -1516,7 +1555,7 @@ function act(el) {
   const d = el.dataset;
 
   if (d.speak !== undefined) { speak(d.speak, el); return; }
-  if (d.grade !== undefined) { if (session?.queue.length) grade(d.grade === '1'); return; }
+  if (d.grade !== undefined) { pressGrade(el, d.grade === '1'); return; }
   if (d.study !== undefined) { haptic(); startSession(d.study); return; }
   if (d.ob) { obAction(d.ob, el); return; }
   if (d.go === 'word') { haptic(); openWord(''); return; }
@@ -1547,7 +1586,7 @@ function act(el) {
     }
     return;
   }
-  if (d.reveal !== undefined && session && !session.revealed) {
+  if (d.reveal !== undefined && session && !session.revealed && !grading) {
     haptic();
     session.revealed = true;
     saveSession();
