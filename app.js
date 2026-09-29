@@ -1,6 +1,6 @@
-import { parseWords, dayKey, addDays, schedule, buildQueue, streak, dayHistory, mergeState, LEARNED_IVL } from './core.js?v=6';
+import { parseWords, myCards, MY_TOPIC, dayKey, addDays, schedule, buildQueue, streak, dayHistory, mergeState, LEARNED_IVL } from './core.js?v=8';
 import { mascot, LETTERS } from './mascot.js?v=6';
-import { cloudEnabled, getClient, signInWithGoogle, signOut, pullState, pushState, userProfile } from './cloud.js?v=9';
+import { cloudEnabled, getClient, signInWithGoogle, signOut, pullState, pushState, userProfile } from './cloud.js?v=10';
 
 const STORE_KEY = 'english-cards:v1';
 const SESSION_KEY = 'english-cards:session';
@@ -20,6 +20,7 @@ const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)');
 const app = document.getElementById('app');
 const tabs = document.getElementById('tabs');
 
+let baseCards = [];
 let cards = [];
 let byId = new Map();
 let topics = [];
@@ -36,7 +37,7 @@ let pushTimer;
 // ---------- storage ----------
 
 function loadState() {
-  const fallback = { settings: { dir: 'en-ru', newPerDay: 10, theme: 'auto', haptics: true }, progress: { 'en-ru': {}, 'ru-en': {} }, days: {} };
+  const fallback = { settings: { dir: 'en-ru', newPerDay: 10, theme: 'auto', haptics: true }, progress: { 'en-ru': {}, 'ru-en': {} }, days: {}, mine: {} };
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY));
     if (!saved) return fallback;
@@ -44,6 +45,7 @@ function loadState() {
       settings: { ...fallback.settings, ...saved.settings },
       progress: { ...fallback.progress, ...saved.progress },
       days: saved.days || {},
+      mine: saved.mine || {},
     };
   } catch {
     return fallback;
@@ -75,6 +77,30 @@ function restoreSession() {
     return null;
   }
 }
+
+// Own words come first, so the lesson of the day picks them up before the built-in list.
+function rebuildCards() {
+  const mine = myCards(state.mine);
+  cards = [...mine, ...baseCards];
+  byId = new Map(cards.map(c => [c.id, c]));
+  const byTopic = new Map();
+  for (const c of cards) {
+    if (!byTopic.has(c.topic)) byTopic.set(c.topic, []);
+    byTopic.get(c.topic).push(c);
+  }
+  topics = [...byTopic].map(([name, list]) => ({ name, cards: list, mine: name === MY_TOPIC }));
+}
+
+// The topics picked in onboarding; own words are always part of the plan.
+function inPlan(t) {
+  const picked = state.settings.topics;
+  if (t.mine || !Array.isArray(picked)) return true;
+  // If the word list was renamed and nothing picked still exists, fall back to everything.
+  if (!topics.some(x => !x.mine && picked.includes(x.name))) return true;
+  return picked.includes(t.name);
+}
+const planCards = () => topics.filter(inPlan).flatMap(t => t.cards);
+const hasProgress = () => Object.values(state.progress).some(p => Object.keys(p).length) || Object.keys(state.mine || {}).length > 0;
 
 // ---------- helpers ----------
 
@@ -129,9 +155,14 @@ function topicStats(list) {
 // ---------- icons ----------
 
 const ICONS = {
-  speaker: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  // Drawn once in index.html: the dictionary repeats these hundreds of times.
+  speaker: '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-speaker"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+  sparkle: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9L11 3zM18.5 14l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z" fill="currentColor"/></svg>',
+  back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-  chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chevron"/></svg>',
   flame: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c.5 3-1.5 4.5-3 6.5-1.3 1.7-2 3.3-2 5.2A5 5 0 0 0 12 19.5a5 5 0 0 0 5-5.3c0-2.6-1.4-4.2-2.4-5.4-.2 1.3-.8 2.2-1.7 2.7.4-3.2-.2-6.3-.9-9z" fill="currentColor"/></svg>',
   play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>',
 };
@@ -260,14 +291,6 @@ const HX = () => (state.settings.haptics ? '<input type="checkbox" switch class=
 function haptic(kind = 'light') {
   if (!state.settings.haptics || !navigator.vibrate) return;
   navigator.vibrate({ light: 12, success: [14, 70, 14, 70, 24], error: [30, 60, 30] }[kind]);
-}
-
-function updateTabBadge() {
-  const badge = document.getElementById('mistakes-badge');
-  if (!badge || !cards.length) return;
-  const n = hardCards().length;
-  badge.textContent = n > 99 ? '99+' : n;
-  badge.hidden = !n;
 }
 
 function refreshTabHaptics() {
@@ -423,25 +446,40 @@ function claimLocalState(uid) {
 }
 
 function resetLocalProgress() {
-  state = { settings: state.settings, progress: { 'en-ru': {}, 'ru-en': {} }, days: {} };
+  state = { settings: state.settings, progress: { 'en-ru': {}, 'ru-en': {} }, days: {}, mine: {} };
   saveLocal();
+  rebuildCards();
   try { sessionStorage.removeItem(SESSION_KEY); } catch {}
 }
 
-async function syncNow() {
-  if (!user) return;
+let syncing = null;
+function syncNow() {
+  if (!user) return Promise.resolve();
+  syncing ||= runSync().finally(() => { syncing = null; });
+  return syncing;
+}
+
+async function runSync() {
   setSync('saving');
   try {
     const remote = await pullState(user.id);
+    const before = JSON.stringify(state);
     state = mergeState(state, remote);
+    const changed = JSON.stringify(state) !== before;
     pulled = true;
-    saveLocal();
-    applyTheme();
+    if (changed) {
+      saveLocal();
+      rebuildCards();
+      applyTheme();
+    }
     await pushState(user.id, state);
     setSync('saved');
-    if (screen && screen !== 'study' && !needsLogin()) SCREENS[screen]();
+    if (screen === 'wait') enterApp();
+    // Redraw only when another device changed something, so returning to the app doesn't flash the screen.
+    else if (changed && screen && !['study', 'word', 'onboarding'].includes(screen) && !needsLogin()) SCREENS[screen]();
   } catch {
     setSync('error');
+    if (screen === 'wait') show('onboarding');
   }
 }
 
@@ -463,11 +501,11 @@ function onSignedIn(event) {
   if (event === 'SIGNED_IN') toast(`Привет, ${userProfile(user).name.split(' ')[0]}!`, 'happy');
 }
 
-async function initCloud() {
+async function initCloud(clientReady) {
   if (!cloudEnabled) return;
   let sb;
   try {
-    sb = await getClient();
+    sb = await clientReady;
   } catch {
     user = savedSessionUser();
     setSync('error');
@@ -502,7 +540,8 @@ async function logOut() {
   if (!confirm('Выйти из аккаунта? Прогресс сохранится в облаке, а на этом телефоне будет очищен.')) return;
   clearTimeout(pushTimer);
   try {
-    if (pulled) await pushState(user.id, state);
+    if (!pulled) state = mergeState(state, await pullState(user.id));
+    await pushState(user.id, state);
   } catch {
     toast('Нет интернета — не могу сохранить прогресс перед выходом', 'sad');
     return;
@@ -529,32 +568,23 @@ function renderLogin() {
 }
 
 function enterApp() {
+  if (!state.settings.onboarded) {
+    if (hasProgress()) { state.settings.onboarded = true; saveState(); }
+    // Wait for the cloud copy (a returning user may already have a plan), unless it can't be reached.
+    else { screen = ''; show(pulled || !user || syncStatus === 'error' ? 'onboarding' : 'wait'); return; }
+  }
   let last = 'home';
   try { last = sessionStorage.getItem(SCREEN_KEY) || 'home'; } catch {}
   session = restoreSession();
   screen = '';
-  show(session ? 'study' : last === 'study' ? 'home' : last);
+  if (['study', 'wait', 'onboarding'].includes(last)) last = 'home';
+  show(session ? 'study' : last === 'word' ? 'dict' : last);
 }
 
 const GOOGLE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.6 12.3c0-.8-.1-1.5-.2-2.3H12v4.3h6a5.1 5.1 0 0 1-2.2 3.4v2.8h3.6c2.1-2 3.2-4.8 3.2-8.2z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.4-2.7l-3.6-2.8c-1 .7-2.3 1.1-3.8 1.1-2.9 0-5.4-2-6.3-4.6H2v2.9A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.7 14c-.2-.7-.4-1.3-.4-2s.1-1.4.4-2V7.1H2a11 11 0 0 0 0 9.8L5.7 14z"/><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.3 1.7l3.2-3.2A11 11 0 0 0 2 7.1L5.7 10c.9-2.7 3.4-4.6 6.3-4.6z"/></svg>';
 
 function accountSection() {
-  if (!cloudEnabled) {
-    return `
-      <h2 class="group-title">Аккаунт</h2>
-      <section class="card-surface group">
-        <div class="group-row"><span>Вход через Google</span><span class="chip">скоро</span></div>
-      </section>
-      <p class="group-note">Появится после подключения сервера аккаунтов.</p>`;
-  }
-  if (!user) {
-    return `
-      <h2 class="group-title">Аккаунт</h2>
-      <section class="card-surface pad account-cta">
-        <p>Войди, чтобы прогресс сохранялся в облаке и был доступен на любом устройстве.</p>
-        <button type="button" class="btn google block" data-action="signin">${GOOGLE_ICON}Войти через Google</button>
-      </section>`;
-  }
+  if (!user) return '';
   const p = userProfile(user);
   const avatar = p.avatar
     ? `<img class="avatar" src="${esc(p.avatar)}" alt="" referrerpolicy="no-referrer">`
@@ -574,7 +604,8 @@ function accountSection() {
 // ---------- home ----------
 
 function renderHome() {
-  const all = topicStats(cards);
+  const plan = planCards();
+  const all = topicStats(plan);
   const planNew = Math.min(Math.max(0, newLeft()), all.fresh);
   const s = streak(state.days, today());
   const limit = state.settings.newPerDay;
@@ -584,7 +615,7 @@ function renderHome() {
   const goal = doneToday + remaining;
   const tomorrow = addDays(today(), 1);
   const p = progress();
-  const dueTomorrow = cards.filter(c => p[c.id] && p[c.id].due === tomorrow).length;
+  const dueTomorrow = plan.filter(c => p[c.id] && p[c.id].due === tomorrow).length;
   const learning = all.total - all.fresh - all.learned;
 
   let bubble;
@@ -626,7 +657,7 @@ function renderHome() {
     <section class="card-surface pad">
       <div class="row"><h2 class="h3">Мой словарь</h2><span class="muted num">${all.learned} / ${all.total}</span></div>
       <div class="meter">
-        <span class="learned" style="width:${(all.learned / all.total) * 100}%"></span><span class="learning" style="width:${(learning / all.total) * 100}%"></span>
+        <span class="learned" style="width:${(all.learned / (all.total || 1)) * 100}%"></span><span class="learning" style="width:${(learning / (all.total || 1)) * 100}%"></span>
       </div>
       <div class="legend">
         <span><i class="dot learned"></i>Выучено ${all.learned}</span>
@@ -635,13 +666,13 @@ function renderHome() {
       </div>
     </section>
 
-    <h2 class="section-title">Темы</h2>
+    <div class="section-head"><h2 class="section-title">Мои темы</h2><button type="button" class="link-btn" data-ob="restart">Изменить</button></div>
     <ul class="list card-surface">
-      ${topics.map((t, i) => {
+      ${topics.filter(inPlan).map(t => {
         const st = topicStats(t.cards);
         return `
           <li>
-            <label class="list-row" role="button" data-study="${i}">${HX()}
+            <label class="list-row" role="button" data-study="${esc(t.name)}">${HX()}
               <span class="topic-ring">${ring(st.learned / st.total, 36, 4)}</span>
               <span class="list-main">
                 <span class="list-title">${esc(t.name)}</span>
@@ -652,28 +683,28 @@ function renderHome() {
             </label>
           </li>`;
       }).join('')}
+      ${topics.some(t => t.mine) ? '' : `
+        <li>
+          <label class="list-row" role="button" data-edit="">${HX()}
+            <span class="my-cta-icon">${ICONS.plus}</span>
+            <span class="list-main">
+              <span class="list-title">Мои слова</span>
+              <span class="list-sub">Добавь свои слова — и учи их вместе с остальными</span>
+            </span>
+            <span class="chev">${ICONS.chevron}</span>
+          </label>
+        </li>`}
     </ul>`;
 }
 
 // ---------- study ----------
 
-const hardCards = () => {
-  const p = progress();
-  return cards.filter(c => p[c.id]?.lapses > 0).sort((a, b) => p[b.id].lapses - p[a.id].lapses);
-};
-
 function startSession(key) {
-  if (key === 'mistakes') {
-    const queue = hardCards();
-    session = { title: 'Работа над ошибками', mode: 'practice', dir: dir(), queue, done: 0, total: queue.length, revealed: false, enter: true, seen: [], firstTry: 0, fresh: 0 };
-    show('study');
-    return;
-  }
-  const topic = key === '*' ? null : topics[Number(key)];
-  const list = topic ? topic.cards : cards;
-  const queue = buildQueue(list, progress(), today(), newLeft());
+  const topic = key === '*' ? null : topics.find(t => t.name === key);
+  const list = topic ? topic.cards : planCards();
+  // The user chose to drill words they added themselves, so the daily new-word limit doesn't hold them back.
+  const queue = buildQueue(list, progress(), today(), topic?.mine ? Infinity : newLeft());
   session = {
-    title: topic ? topic.name : 'Урок дня',
     dir: dir(),
     queue,
     done: 0,
@@ -693,30 +724,13 @@ function renderDone() {
   const had = session.total > 0;
   const acc = had ? Math.round((session.firstTry / session.total) * 100) : 0;
   const s = streak(state.days, today());
-  if (session.mode === 'practice') {
-    const left = hardCards().length;
-    app.innerHTML = `
-      <section class="done">
-        <div class="done-mascot">${buddy('celebrate', 150, 'jump')}</div>
-        <h1>Ошибки проработаны!</h1>
-        <p class="muted">${left ? `В списке ошибок осталось ${left} ${plural(left, 'слово', 'слова', 'слов')}. Каждый верный ответ с первого раза убирает одну ошибку.` : 'Список ошибок пуст — все слова отработаны!'}</p>
-        <div class="done-stats">
-          <div><b>${session.total}</b><span>${plural(session.total, 'слово', 'слова', 'слов')}</span></div>
-          <div><b>${acc}%</b><span>с первого раза</span></div>
-          <div><b>${left}</b><span>осталось</span></div>
-        </div>
-        <button type="button" class="btn primary block" data-go="mistakes">Готово</button>
-      </section>`;
-    if (!session.celebrated) { session.celebrated = true; saveSession(); confetti(); }
-    return;
-  }
   app.innerHTML = `
     <section class="done">
       <div class="done-mascot">${buddy(had ? 'celebrate' : 'sleep', 150, had ? 'jump' : 'idle')}</div>
       <h1>${had ? 'Урок пройден!' : 'Здесь пока пусто'}</h1>
       <p class="muted">${had
         ? `${LETTER === 'A' ? 'Эй' : `Буква ${LETTER}`} гордится тобой. Слова вернутся, когда их пора будет повторить.`
-        : 'Все карточки темы на сегодня пройдены или закончился лимит новых слов. Его можно поменять в профиле.'}</p>
+        : 'Все карточки на сегодня пройдены или закончился лимит новых слов. Его можно поменять в профиле.'}</p>
       ${had ? `
         <div class="done-stats">
           <div><b>${session.total}</b><span>${cardsWord(session.total)}</span></div>
@@ -760,7 +774,7 @@ function renderStudy() {
     <section class="flash ${session.revealed ? 'revealed' : ''} ${session.enter ? 'enter' : ''}" data-reveal>
       ${session.revealed ? '' : HX()}
       <div class="flash-meta">
-        ${session.mode === 'practice' ? '<span class="chip warn">Ошибка</span>' : isNew ? '<span class="chip accent">Новое слово</span>' : '<span class="chip">Повторение</span>'}
+        ${isNew ? '<span class="chip accent">Новое слово</span>' : '<span class="chip">Повторение</span>'}
         <span class="muted small ellipsis">${esc(card.topic)}</span>
       </div>
       <div class="flash-body">
@@ -788,36 +802,7 @@ function renderStudy() {
   session.enter = false;
 }
 
-// Mistakes practice doesn't touch the repetition schedule; a first-try «Знаю» just lowers the word's error count.
-function practiceGrade(known) {
-  const card = session.queue.shift();
-  const t = today();
-  const day = state.days[t] || (state.days[t] = { reviewed: 0, new: {} });
-  day.reviewed += 1;
-  const firstTime = !session.seen.includes(card.id);
-  if (firstTime) session.seen.push(card.id);
-  haptic(known ? 'light' : 'error');
-  if (known) {
-    session.done += 1;
-    if (firstTime) {
-      session.firstTry += 1;
-      const s = progress()[card.id];
-      s.lapses = Math.max(0, s.lapses - 1);
-    }
-    if (session.queue.length) toast(firstTime ? 'Отлично! Ошибок у слова стало меньше' : 'Запомнил!');
-  } else {
-    session.queue.splice(Math.min(3, session.queue.length), 0, card);
-    toast('Ничего страшного — покажу ещё раз', 'sad');
-  }
-  saveState();
-  session.revealed = false;
-  session.enter = true;
-  saveSession();
-  renderStudy();
-}
-
 function grade(known) {
-  if (session.mode === 'practice') { practiceGrade(known); return; }
   const card = session.queue.shift();
   const t = today();
   const d = dir();
@@ -851,6 +836,19 @@ function grade(known) {
   session.enter = true;
   saveSession();
   renderStudy();
+}
+
+// Half a turn away, swap in the back side, then the other half turn in.
+function flipCard() {
+  const card = app.querySelector('.flash');
+  if (!card || REDUCED_MOTION.matches) { renderStudy(); return; }
+  card.classList.remove('enter');
+  card.classList.add('flip-out');
+  setTimeout(() => {
+    if (screen !== 'study' || !session?.revealed) return;
+    renderStudy();
+    app.querySelector('.flash')?.classList.add('flip-in');
+  }, 190);
 }
 
 // ---------- charts ----------
@@ -975,39 +973,198 @@ function renderStats() {
     <p class="footnote">«Выучено» — слово, которое ты помнишь с интервалом от ${LEARNED_IVL} дней. «Начато» — все слова, которые ты хоть раз видел.</p>`;
 }
 
-// ---------- mistakes ----------
+// ---------- onboarding ----------
 
-function renderMistakes() {
-  const hard = hardCards();
-  const p = progress();
-  const total = hard.reduce((a, c) => a + p[c.id].lapses, 0);
+const BASICS = ['Личные местоимения и глаголы-связки', 'Вопросительные слова', 'Артикли', 'Числительные (основные)', 'Вежливость и повседневные фразы', 'Действия (Глаголы базовые)'];
+const GOALS = {
+  travel: { icon: '✈️', label: 'Путешествия', topics: ['Места', 'Еда и напитки', 'Услуги и покупки', 'Время', 'Числа и количество', 'Природа и погода', 'Предлоги', 'Вежливость и повседневные фразы'] },
+  work: { icon: '💼', label: 'Работа', topics: ['Профессии', 'Время', 'Числа и количество', 'Основные глаголы (продолжение)', 'Предлоги', 'Состояние и описание', 'Услуги и покупки'] },
+  movies: { icon: '🎬', label: 'Фильмы и сериалы', topics: ['Эмоции и ощущения', 'Семья', 'Состояние и описание', 'Прилагательные (продолжение)', 'Основные глаголы (продолжение)', 'Животные'] },
+  talk: { icon: '💬', label: 'Общение', topics: ['Семья', 'Эмоции и ощущения', 'Еда и напитки', 'Дом и мебель', 'Одежда', 'Прилагательные (продолжение)', 'Вежливость и повседневные фразы'] },
+  study: { icon: '🎓', label: 'Учёба', topics: ['Школа и образование', 'Время', 'Числа и количество', 'Предлоги', 'Основные глаголы (продолжение)', 'Прилагательные (продолжение)'] },
+  self: { icon: '✨', label: 'Для себя', topics: null },
+};
+const LEVELS = {
+  zero: { title: 'Начинаю с нуля', sub: 'Знаю буквы и пару слов', perDay: 5 },
+  basic: { title: 'Знаю самые простые слова', sub: 'Hello, cat, I am…', perDay: 10 },
+  talk: { title: 'Могу немного поговорить', sub: 'Понимаю простые фразы', perDay: 20 },
+};
+const PACES = [
+  { n: 5, title: 'Спокойно', sub: '5 новых слов · ~5 минут в день' },
+  { n: 10, title: 'В своём темпе', sub: '10 новых слов · ~10 минут в день' },
+  { n: 20, title: 'Интенсивно', sub: '20 новых слов · ~20 минут в день' },
+];
+const OB_STEPS = 4;
+let ob = null;
+
+function planLabel() {
+  const base = topics.filter(t => !t.mine);
+  const n = base.filter(inPlan).length;
+  return n === base.length ? 'все темы' : `${n} ${plural(n, 'тема', 'темы', 'тем')} из ${base.length}`;
+}
+
+function startOnboarding(again) {
+  const s = state.settings;
+  const picked = Array.isArray(s.topics) ? s.topics : topics.filter(t => !t.mine).map(t => t.name);
+  ob = {
+    step: 0,
+    again,
+    goals: new Set(s.goals || []),
+    level: s.level || '',
+    topics: new Set(picked),
+    topicsTouched: again,
+    perDay: s.newPerDay,
+  };
+}
+
+function suggestTopics() {
+  const names = topics.filter(t => !t.mine).map(t => t.name);
+  if (!ob.goals.size || ob.goals.has('self')) return new Set(names.filter(n => ob.level === 'zero' || !BASICS.includes(n) || ob.level === ''));
+  const out = new Set();
+  for (const g of ob.goals) for (const n of GOALS[g].topics) out.add(n);
+  if (ob.level === 'zero' || ob.level === '') for (const n of BASICS) out.add(n);
+  return new Set(names.filter(n => out.has(n)));
+}
+
+function renderWait() {
   app.innerHTML = `
-    <header class="page-head"><h1>Ошибки</h1>${hard.length ? `<span class="chip">${hard.length} ${plural(hard.length, 'слово', 'слова', 'слов')}</span>` : ''}</header>
-    ${hard.length ? `
-      <section class="hero card-surface">
-        <div class="hero-top">
-          <div class="hero-mascot">${buddy('happy', 72, 'idle')}</div>
-          <p class="bubble">Давай проработаем слова, в которых ты ошибался. Всего ошибок: ${total}.</p>
-        </div>
-        <label class="btn primary block" role="button" data-study="mistakes">${HX()}${ICONS.play}Тренировать ошибки</label>
-      </section>
-      <p class="footnote">Каждый ответ «Знаю» с первого раза уменьшает счётчик ошибок слова. Когда он дойдёт до нуля, слово уйдёт из списка.</p>
-      <ul class="list card-surface">
-        ${hard.map(c => `
-          <li class="list-row static">
-            ${speakBtn(c.word, 'small')}
-            <span class="list-main">
-              <span class="list-title">${esc(c.word)} <span class="muted">${esc(c.ipa)}</span></span>
-              <span class="list-sub">${esc(c.translation)}</span>
-            </span>
-            <span class="pill no">${p[c.id].lapses}×</span>
-          </li>`).join('')}
-      </ul>` : `
-      <section class="done">
-        <div class="done-mascot">${buddy('happy', 130, 'idle')}</div>
-        <h2 class="h3">Ошибок нет</h2>
-        <p class="muted">Когда ответишь «Не знаю», слово попадёт сюда — и его можно будет потренировать отдельно.</p>
-      </section>`}`;
+    <section class="done">
+      <div class="done-mascot">${buddy('wave', 130, 'idle')}</div>
+      <p class="muted">Загружаю твой прогресс…</p>
+    </section>`;
+}
+
+function renderOnboarding() {
+  if (!ob) startOnboarding(false);
+  const name = user ? userProfile(user).name.split(' ')[0] : '';
+  const dots = Array.from({ length: OB_STEPS }, (_, i) => `<i class="${i <= ob.step ? 'on' : ''}"></i>`).join('');
+  const back = ob.step > 0
+    ? `<button type="button" class="icon-btn" data-ob="back" aria-label="Назад">${ICONS.back}</button>`
+    : ob.again ? `<button type="button" class="icon-btn" data-ob="close" aria-label="Закрыть">${ICONS.close}</button>` : '<span class="icon-spacer"></span>';
+  let head, body, next = 'Дальше';
+
+  if (ob.step === 0) {
+    head = { mood: 'wave', title: ob.again ? 'Что для тебя важно?' : `Привет${name ? `, ${esc(name)}` : ''}! Я ${LETTER === 'A' ? 'Эй' : LETTERS[LETTER]?.name || LETTER}`, sub: ob.again ? 'Можно выбрать несколько целей' : 'Подберу слова под тебя. Для чего тебе английский? Можно выбрать несколько.' };
+    body = `<div class="ob-grid">${Object.entries(GOALS).map(([k, g]) => `
+      <label class="ob-tile ${ob.goals.has(k) ? 'on' : ''}" role="button" data-ob="goal:${k}">${HX()}
+        <span class="ob-emoji">${g.icon}</span><span>${g.label}</span><span class="ob-check">${ICONS.check}</span>
+      </label>`).join('')}</div>`;
+  } else if (ob.step === 1) {
+    head = { mood: 'happy', title: 'Какой у тебя уровень?', sub: 'От этого зависит, с чего начнём и сколько слов давать в день.' };
+    body = `<div class="ob-list">${Object.entries(LEVELS).map(([k, l]) => `
+      <label class="ob-option ${ob.level === k ? 'on' : ''}" role="button" data-ob="level:${k}">${HX()}
+        <span class="list-main"><span class="list-title">${l.title}</span><span class="list-sub">${l.sub}</span></span>
+        <span class="ob-radio"></span>
+      </label>`).join('')}</div>`;
+  } else if (ob.step === 2) {
+    head = { mood: 'celebrate', title: 'Твои темы', sub: 'Я отметил подходящие под твои цели. Убери лишнее или добавь интересное.' };
+    body = `
+      <div class="ob-bar"><span id="ob-count" class="muted small">${obCountLabel()}</span><button type="button" class="link-btn" data-ob="all">${obAllPicked() ? 'Снять все' : 'Выбрать все'}</button></div>
+      <div class="ob-chips">${topics.filter(t => !t.mine).map(t => `
+        <label class="ob-chip ${ob.topics.has(t.name) ? 'on' : ''}" role="button" data-ob="topic:${esc(t.name)}">${HX()}${esc(t.name)}</label>`).join('')}</div>`;
+  } else {
+    head = { mood: 'happy', title: 'Сколько времени в день?', sub: 'Новые слова плюс повторение старых. Это можно поменять в любой момент.' };
+    body = `<div class="ob-list">${PACES.map(p => `
+      <label class="ob-option ${ob.perDay === p.n ? 'on' : ''}" role="button" data-ob="pace:${p.n}">${HX()}
+        <span class="list-main"><span class="list-title">${p.title}</span><span class="list-sub">${p.sub}</span></span>
+        <span class="ob-radio"></span>
+      </label>`).join('')}</div>`;
+    next = ob.again ? 'Сохранить' : 'Начать учиться';
+  }
+
+  app.innerHTML = `
+    <section class="ob" data-step="${ob.step}">
+      <header class="ob-top">${back}<div class="ob-dots">${dots}</div><span class="icon-spacer"></span></header>
+      <div class="ob-head">
+        <div class="ob-mascot">${buddy(head.mood, 92, 'idle')}</div>
+        <h1>${head.title}</h1>
+        <p class="muted">${head.sub}</p>
+      </div>
+      ${body}
+      <footer class="actions ob-actions"><label class="btn primary block" role="button" data-ob="next">${HX()}${next}</label></footer>
+    </section>`;
+  window.scrollTo(0, 0);
+}
+
+const obWords = () => topics.filter(t => !t.mine && ob.topics.has(t.name)).reduce((a, t) => a + t.cards.length, 0);
+const obAllPicked = () => topics.filter(t => !t.mine).every(t => ob.topics.has(t.name));
+function obCountLabel() {
+  const n = ob.topics.size, w = obWords();
+  return `${n} ${plural(n, 'тема', 'темы', 'тем')} · ${w} ${plural(w, 'слово', 'слова', 'слов')}`;
+}
+
+function obAction(a, el) {
+  if (!ob) startOnboarding(false);
+  const [kind, ...rest] = a.split(':');
+  const val = rest.join(':');
+  haptic();
+  if (kind === 'restart') { startOnboarding(true); screen = ''; show('onboarding'); return; }
+  if (kind === 'close') { ob = null; show('home'); return; }
+  if (kind === 'back') { ob.step = Math.max(0, ob.step - 1); renderOnboarding(); return; }
+  if (kind === 'goal') {
+    ob.goals.has(val) ? ob.goals.delete(val) : ob.goals.add(val);
+    el.classList.toggle('on', ob.goals.has(val));
+    ob.topicsTouched = false;
+    return;
+  }
+  if (kind === 'level') {
+    ob.level = val;
+    ob.perDay = LEVELS[val].perDay;
+    ob.topicsTouched = false;
+    app.querySelectorAll('[data-ob^="level:"]').forEach(x => x.classList.toggle('on', x === el));
+    setTimeout(() => { if (ob?.step === 1) { ob.step = 2; ob.topics = suggestTopics(); renderOnboarding(); } }, 280);
+    return;
+  }
+  if (kind === 'topic') {
+    ob.topics.has(val) ? ob.topics.delete(val) : ob.topics.add(val);
+    ob.topicsTouched = true;
+    el.classList.toggle('on', ob.topics.has(val));
+    obRefreshCount();
+    return;
+  }
+  if (kind === 'all') {
+    const all = obAllPicked();
+    ob.topics = new Set(all ? [] : topics.filter(t => !t.mine).map(t => t.name));
+    ob.topicsTouched = true;
+    renderOnboarding();
+    return;
+  }
+  if (kind === 'pace') {
+    ob.perDay = Number(val);
+    app.querySelectorAll('[data-ob^="pace:"]').forEach(x => x.classList.toggle('on', x === el));
+    return;
+  }
+  if (kind === 'next') {
+    if (ob.step === 0 && !ob.goals.size) { toast('Выбери хотя бы одну цель', 'sad'); return; }
+    if (ob.step === 1 && !ob.level) { toast('Выбери свой уровень', 'sad'); return; }
+    if (ob.step === 2 && !ob.topics.size) { toast('Выбери хотя бы одну тему', 'sad'); return; }
+    if (ob.step === 1 && !ob.topicsTouched) ob.topics = suggestTopics();
+    if (ob.step < OB_STEPS - 1) { ob.step++; renderOnboarding(); return; }
+    finishOnboarding();
+  }
+}
+
+function obRefreshCount() {
+  const c = document.getElementById('ob-count');
+  if (c) c.textContent = obCountLabel();
+  const all = app.querySelector('[data-ob="all"]');
+  if (all) all.textContent = obAllPicked() ? 'Снять все' : 'Выбрать все';
+}
+
+function finishOnboarding() {
+  const again = ob.again;
+  const s = state.settings;
+  s.goals = [...ob.goals];
+  s.level = ob.level;
+  s.topics = obAllPicked() ? null : [...ob.topics];
+  s.newPerDay = ob.perDay;
+  s.onboarded = true;
+  saveState();
+  ob = null;
+  try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+  show('home');
+  if (again) toast('План обновлён', 'happy');
+  else { confetti(); haptic('success'); toast('Готово! Твой план собран', 'happy'); }
 }
 
 // ---------- dictionary ----------
@@ -1015,6 +1172,7 @@ function renderMistakes() {
 const DICT_FILTERS = { all: 'Все', fresh: 'Новые', learning: 'Изучаю', learned: 'Выучено' };
 let dictQuery = '';
 let dictFilter = 'all';
+let dictFrame = 0;
 
 function wordStatus(c) {
   const s = progress()[c.id];
@@ -1022,9 +1180,22 @@ function wordStatus(c) {
   return s.ivl >= LEARNED_IVL ? 'learned' : 'learning';
 }
 
+const statusDot = c => { const st = wordStatus(c); return `<i class="dot ${st}" title="${DICT_FILTERS[st]}"></i>`; };
+
 function renderDict() {
   app.innerHTML = `
-    <header class="page-head"><h1>Словарь</h1><span class="chip">${cards.length} слов</span></header>
+    <header class="page-head">
+      <h1>Словарь</h1>
+      <label class="btn add-btn" role="button" data-edit="">${HX()}${ICONS.plus}Слово</label>
+    </header>
+    ${topics.some(t => t.mine) ? '' : `
+      <label class="my-cta card-surface" role="button" data-edit="">${HX()}
+        <span class="my-cta-icon">${ICONS.plus}</span>
+        <span class="list-main">
+          <span class="list-title">Собери свой банк слов</span>
+          <span class="list-sub">Добавь слова из фильмов, книг и работы — они попадут в урок первыми</span>
+        </span>
+      </label>`}
     <label class="search card-surface">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       <input id="dict-q" type="search" placeholder="Найти слово или перевод" value="${esc(dictQuery)}" autocomplete="off" autocorrect="off" spellcheck="false">
@@ -1055,22 +1226,190 @@ function renderDictList() {
   box.innerHTML = groups.map(g => `
     <h2 class="group-title">${esc(g.name)}</h2>
     <ul class="list card-surface">
-      ${g.items.map(c => `
+      ${g.items.map(c => c.mine ? `
+        <li>
+          <label class="list-row" role="button" data-edit="${esc(c.id)}">${HX()}
+            ${speakBtn(c.word, 'small')}
+            <span class="list-main">
+              <span class="list-title">${esc(c.word)} <span class="muted">${esc(c.ipa)}</span></span>
+              <span class="list-sub">${esc(c.translation)}</span>
+            </span>
+            ${statusDot(c)}
+            <span class="chev">${ICONS.chevron}</span>
+          </label>
+        </li>` : `
         <li class="list-row static">
           ${speakBtn(c.word, 'small')}
           <span class="list-main">
             <span class="list-title">${esc(c.word)} <span class="muted">${esc(c.ipa)}</span></span>
             <span class="list-sub">${esc(c.translation)}</span>
           </span>
-          <i class="dot ${wordStatus(c)}" title="${DICT_FILTERS[wordStatus(c)]}"></i>
+          ${statusDot(c)}
         </li>`).join('')}
     </ul>`).join('');
 }
 
+// ---------- own words ----------
+
+const WORD_FIELDS = ['word', 'translation', 'ipa', 'exEn', 'exRu'];
+let editingId = null;
+let wordBack = 'dict';
+
+function renderWord() {
+  const w = editingId ? state.mine[editingId] : null;
+  const v = k => esc(w?.[k] || '');
+  const field = (k, label, ph, attrs = '') => `
+    <label class="field">
+      <span class="field-label">${label}</span>
+      <input id="f-${k}" value="${v(k)}" placeholder="${ph}" autocomplete="off" spellcheck="false" ${attrs}>
+    </label>`;
+  app.innerHTML = `
+    <header class="study-top">
+      <button type="button" class="icon-btn" data-go="${wordBack}" aria-label="Закрыть">${ICONS.close}</button>
+      <h1 class="h3 grow">${w ? 'Изменить слово' : 'Новое слово'}</h1>
+    </header>
+
+    <section class="card-surface form">
+      ${field('word', 'Слово на английском', 'например, sunshine', 'autocapitalize="off" autocorrect="off" lang="en"')}
+      ${field('translation', 'Перевод', 'например, солнечный свет', 'lang="ru"')}
+      <label class="btn soft block" role="button" data-action="autofill">${HX()}${ICONS.sparkle}<span>Подсказать перевод и пример</span></label>
+      ${field('ipa', 'Транскрипция', '[ˈsʌnʃaɪn]', 'autocapitalize="off" autocorrect="off"')}
+      ${field('exEn', 'Пример', 'The sunshine is warm today.', 'autocapitalize="sentences" lang="en"')}
+      ${field('exRu', 'Перевод примера', 'Сегодня тёплое солнце.', 'lang="ru"')}
+    </section>
+    <p class="group-note">Обязательны только слово и перевод. Подсказка работает через интернет — проверь её, прежде чем сохранить.</p>
+
+    <label class="btn primary block" role="button" data-action="save-word">${HX()}${w ? 'Сохранить' : 'Добавить в словарь'}</label>
+    ${w ? '<button type="button" class="btn ghost-danger block" data-action="delete-word">Удалить слово</button>' : ''}`;
+  if (!w) setTimeout(() => document.getElementById('f-word')?.focus(), 350);
+}
+
+function openWord(id) {
+  editingId = id && state.mine[id] ? id : null;
+  if (screen && screen !== 'word') wordBack = screen;
+  show('word');
+}
+
+const readForm = () => Object.fromEntries(WORD_FIELDS.map(k => [k, (document.getElementById(`f-${k}`)?.value || '').trim()]));
+
+function saveWord() {
+  const f = readForm();
+  if (!f.word || !f.translation) {
+    haptic('error');
+    toast(!f.word ? 'Впиши слово на английском' : 'Впиши перевод', 'sad');
+    document.getElementById(!f.word ? 'f-word' : 'f-translation')?.focus();
+    return;
+  }
+  if (f.ipa && !/^[[/]/.test(f.ipa)) f.ipa = `[${f.ipa}]`;
+  const key = f.word.toLowerCase();
+  const twin = cards.find(c => c.word.toLowerCase() === key && c.id !== editingId);
+  if (twin && !confirm(`«${twin.word}» уже есть в словаре (${twin.topic}: ${twin.translation}). Всё равно добавить?`)) return;
+
+  const now = Date.now();
+  const id = editingId || `my:${now.toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  state.mine[id] = { ...f, created: state.mine[id]?.created || now, updated: now };
+  saveState();
+  rebuildCards();
+  haptic('success');
+  toast(editingId ? 'Сохранено' : `«${f.word}» в твоём словаре`, 'happy');
+  editingId = null;
+  dictQuery = '';
+  dictFilter = 'all';
+  show('dict');
+}
+
+function deleteWord() {
+  const w = state.mine[editingId];
+  if (!w || !confirm(`Удалить «${w.word}» из словаря? Прогресс по этому слову тоже удалится.`)) return;
+  state.mine[editingId] = { deleted: true, updated: Date.now() };
+  for (const d of Object.keys(state.progress)) delete state.progress[d][editingId];
+  saveState();
+  rebuildCards();
+  editingId = null;
+  toast('Слово удалено');
+  show('dict');
+}
+
+// Free public services: Wiktionary for transcription and examples, MyMemory for translation.
+async function getJSON(url) {
+  const res = await fetch(url, { signal: AbortSignal.timeout?.(8000) });
+  if (!res.ok) throw new Error(res.status);
+  return res.json();
+}
+
+async function translate(text, pair) {
+  const data = await getJSON(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${pair}`);
+  const out = String(data?.responseData?.translatedText || '').trim();
+  if (!out || /MYMEMORY|QUERY LENGTH|INVALID/i.test(out) || out.toLowerCase() === text.toLowerCase()) return '';
+  // MyMemory sometimes shouts single words in capitals.
+  return out === out.toUpperCase() && text !== text.toUpperCase() ? out.toLowerCase() : out;
+}
+
+const cleanWiki = t => t.split('|')[0].replace(/'''?|\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1').replace(/\s+/g, ' ').trim();
+
+async function lookupEnglish(word) {
+  const title = encodeURIComponent(word.toLowerCase());
+  const data = await getJSON(`https://en.wiktionary.org/w/api.php?action=query&titles=${title}&prop=revisions&rvprop=content&rvslots=main&format=json&formatversion=2&origin=*`);
+  const text = data?.query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content || '';
+  const en = text.match(/==English==([\s\S]*?)(?:\n==[^=]|$)/)?.[1] || '';
+  const ipa = en.match(/\{\{IPA\|en\|\/([^/|}]+)\//)?.[1] || '';
+  const examples = [...en.matchAll(/\{\{(?:ux|uxi|usex)\|en\|([^{}]*)\}\}/g)].map(m => cleanWiki(m[1]));
+  const example = examples.find(x => x.length >= 8 && x.length <= 70) || '';
+  return { ipa: ipa && `[${ipa}]`, example };
+}
+
+let autofilling = false;
+async function autofill(btn) {
+  if (autofilling) return;
+  const f = readForm();
+  const set = (k, v) => {
+    const el = document.getElementById(`f-${k}`);
+    if (el && v && !el.value.trim()) { el.value = v; el.classList.add('filled'); }
+  };
+  if (!f.word && !f.translation) {
+    toast('Сначала впиши слово — на английском или на русском', 'sad');
+    document.getElementById('f-word')?.focus();
+    return;
+  }
+  autofilling = true;
+  btn.classList.add('loading');
+  const label = btn.querySelector('span');
+  label.textContent = 'Ищу…';
+  let found = 0;
+  try {
+    let word = f.word;
+    if (!word) {
+      word = await translate(f.translation, 'ru|en');
+      set('word', word);
+      if (word) found++;
+    }
+    if (word) {
+      const [ru, info] = await Promise.all([
+        f.translation ? '' : translate(word, 'en|ru').catch(() => ''),
+        lookupEnglish(word).catch(() => ({})),
+      ]);
+      set('translation', ru);
+      set('ipa', info.ipa);
+      const exEn = document.getElementById('f-exEn')?.value.trim() ? '' : info.example;
+      set('exEn', exEn);
+      if (exEn) set('exRu', await translate(exEn, 'en|ru').catch(() => ''));
+      found += [ru, info.ipa, exEn].filter(Boolean).length;
+    }
+  } catch {}
+  autofilling = false;
+  if (!btn.isConnected) return;
+  btn.classList.remove('loading');
+  label.textContent = 'Подсказать перевод и пример';
+  if (found) { haptic('success'); toast('Готово! Проверь и поправь, если нужно', 'happy'); }
+  else toast(navigator.onLine ? 'Ничего не нашлось — впиши вручную' : 'Нет интернета — впиши вручную', 'sad');
+}
+
 document.addEventListener('input', e => {
+  if (e.target.classList?.contains('filled')) e.target.classList.remove('filled');
   if (e.target.id !== 'dict-q') return;
   dictQuery = e.target.value;
-  renderDictList();
+  cancelAnimationFrame(dictFrame);
+  dictFrame = requestAnimationFrame(renderDictList);
 });
 
 // ---------- settings ----------
@@ -1099,6 +1438,7 @@ function renderSettings() {
 
     <h2 class="group-title">Обучение</h2>
     <section class="card-surface group">
+      <button type="button" class="group-row link" data-ob="restart"><span>Цели и темы</span><span class="muted small">${planLabel()}</span></button>
       <div class="group-row stack">
         <span>Направление карточек</span>
         <div class="segmented">
@@ -1123,6 +1463,7 @@ function renderSettings() {
     <h2 class="group-title">Словарь</h2>
     <section class="card-surface group">
       <div class="group-row"><span>Слов</span><span class="muted num">${cards.length}</span></div>
+      <div class="group-row"><span>Из них моих</span><span class="muted num">${cards.length - baseCards.length}</span></div>
       <div class="group-row"><span>Тем</span><span class="muted num">${topics.length}</span></div>
       <button type="button" class="group-row link" data-action="reload">Обновить слова</button>
     </section>
@@ -1136,7 +1477,7 @@ function renderSettings() {
 
 // ---------- navigation ----------
 
-const SCREENS = { home: renderHome, study: renderStudy, stats: renderStats, settings: renderSettings, mistakes: renderMistakes, dict: renderDict };
+const SCREENS = { onboarding: renderOnboarding, wait: renderWait, home: renderHome, study: renderStudy, stats: renderStats, settings: renderSettings, dict: renderDict, word: renderWord };
 
 function show(name) {
   if (needsLogin()) { renderLogin(); return; }
@@ -1151,9 +1492,8 @@ function show(name) {
   try { sessionStorage.setItem(SCREEN_KEY, screen); } catch {}
 
   const render = () => {
-    tabs.hidden = screen === 'study';
+    tabs.hidden = ['study', 'word', 'onboarding', 'wait'].includes(screen);
     tabs.querySelectorAll('[data-go]').forEach(b => b.classList.toggle('on', b.dataset.go === screen));
-    updateTabBadge();
     document.body.dataset.screen = screen;
     SCREENS[screen]();
     window.scrollTo(0, 0);
@@ -1163,7 +1503,7 @@ function show(name) {
 }
 
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-speak],[data-grade],[data-study],[data-go],[data-dir],[data-new],[data-range],[data-set-theme],[data-haptics],[data-dict-filter],[data-action],[data-reveal]');
+  const el = e.target.closest('[data-speak],[data-grade],[data-study],[data-go],[data-dir],[data-new],[data-range],[data-set-theme],[data-haptics],[data-dict-filter],[data-edit],[data-ob],[data-action],[data-reveal]');
   if (!el) return;
   // A tap on the invisible switch must keep its default action — that toggle is what vibrates the iPhone.
   const viaSwitch = e.target.classList?.contains('hx');
@@ -1178,7 +1518,10 @@ function act(el) {
   if (d.speak !== undefined) { speak(d.speak, el); return; }
   if (d.grade !== undefined) { if (session?.queue.length) grade(d.grade === '1'); return; }
   if (d.study !== undefined) { haptic(); startSession(d.study); return; }
+  if (d.ob) { obAction(d.ob, el); return; }
+  if (d.go === 'word') { haptic(); openWord(''); return; }
   if (d.go) { show(d.go); return; }
+  if (d.edit !== undefined) { haptic(); openWord(d.edit); return; }
   if (d.dir) { state.settings.dir = d.dir; saveState(); renderSettings(); return; }
   if (d.new) { state.settings.newPerDay = Number(d.new); saveState(); renderSettings(); return; }
   if (d.range) { range = Number(d.range); renderStats(); return; }
@@ -1190,6 +1533,9 @@ function act(el) {
     return;
   }
   if (d.action === 'signout') { logOut(); return; }
+  if (d.action === 'save-word') { saveWord(); return; }
+  if (d.action === 'delete-word') { deleteWord(); return; }
+  if (d.action === 'autofill') { autofill(el); return; }
   if (d.action === 'reload') { location.reload(); return; }
   if (d.action === 'reset') {
     if (confirm(`Сбросить весь прогресс по направлению ${DIRS[dir()]}?`)) {
@@ -1205,29 +1551,25 @@ function act(el) {
     haptic();
     session.revealed = true;
     saveSession();
-    renderStudy();
+    flipCard();
   }
 }
 
 async function init() {
+  const clientReady = cloudEnabled ? getClient() : null;
+  clientReady?.catch(() => {});
   try {
     const res = await fetch('words.md', { cache: 'no-cache' });
     if (!res.ok) throw new Error(res.status);
-    cards = parseWords(await res.text());
+    baseCards = parseWords(await res.text());
   } catch {
     app.innerHTML = `<div class="empty card-surface">${buddy('sad', 72)}<p>Не удалось загрузить словарь. Проверь интернет и обнови страницу.</p></div>`;
     return;
   }
-  byId = new Map(cards.map(c => [c.id, c]));
-  const byTopic = new Map();
-  for (const c of cards) {
-    if (!byTopic.has(c.topic)) byTopic.set(c.topic, []);
-    byTopic.get(c.topic).push(c);
-  }
-  topics = [...byTopic].map(([name, list]) => ({ name, cards: list }));
+  rebuildCards();
 
   if (location.hash) history.replaceState(null, '', location.pathname);
-  await initCloud();
+  await initCloud(clientReady);
   if (needsLogin()) renderLogin();
   else enterApp();
 }
@@ -1236,7 +1578,8 @@ if ('serviceWorker' in navigator && window.isSecureContext) {
   navigator.serviceWorker.register('sw.js');
 }
 if ('speechSynthesis' in window) speechSynthesis.getVoices();
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && user) syncNow(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') syncNow(); });
+addEventListener('online', () => syncNow());
 
 applyTheme();
 refreshTabHaptics();

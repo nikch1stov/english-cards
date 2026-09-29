@@ -10,21 +10,26 @@
   <meta name="apple-mobile-web-app-title" content="Карточки">
   <meta name="theme-color" content="#f5f5fa" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0a0a0f" media="(prefers-color-scheme: dark)">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.googleusercontent.com; connect-src 'self' https://cdn.jsdelivr.net https://pcvlpnqgkwyzuhsjnszk.supabase.co wss://pcvlpnqgkwyzuhsjnszk.supabase.co https://api.mymemory.translated.net https://en.wiktionary.org; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://pcvlpnqgkwyzuhsjnszk.supabase.co" crossorigin>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-180.png?v=4">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=17">
+  <link rel="stylesheet" href="style.css?v=20">
 </head>
 <body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5H4z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </svg>
   <div class="backdrop" aria-hidden="true"></div>
   <main id="app"><p class="loading">Загрузка…</p></main>
   <nav id="tabs" aria-label="Разделы">
-    <label role="button" data-go="mistakes">
-      <span class="tab-icon">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9M4 13a8 8 0 0 0 14.3 4.9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M5.5 2.8v3.6h3.6M18.5 21.2v-3.6h-3.6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span id="mistakes-badge" class="tab-badge" hidden></span>
-      </span>
-      Ошибки
+    <label role="button" data-go="word">
+      <span class="tab-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></span>
+      Добавить
     </label>
     <label role="button" data-go="dict">
       <span class="tab-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15H7.5A2.5 2.5 0 0 0 5 20.5z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M5 20.5A2.5 2.5 0 0 0 7.5 23H19v-5M9 7.5h6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></span>
@@ -43,6 +48,6 @@
       Профиль
     </label>
   </nav>
-  <script type="module" src="app.js?v=17"></script>
+  <script type="module" src="app.js?v=20"></script>
 </body>
 </html>

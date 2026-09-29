@@ -4,10 +4,11 @@ export const cloudEnabled = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
 let client = null;
 
+// The version is pinned so a new library release can't change the app (or its cached copy) without review.
 export async function getClient() {
   if (!cloudEnabled) return null;
   if (!client) {
-    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm');
     client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     });

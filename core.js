@@ -43,6 +43,16 @@ export function parseWords(md) {
   return cards;
 }
 
+export const MY_TOPIC = 'Мои слова';
+
+// Words the user added in the app: state.mine = { id: { word, ipa, translation, exEn, exRu, created, updated, deleted? } }.
+export function myCards(mine = {}) {
+  return Object.entries(mine)
+    .filter(([, w]) => !w.deleted)
+    .sort((a, b) => (b[1].created || 0) - (a[1].created || 0))
+    .map(([id, w]) => ({ id, word: w.word, ipa: w.ipa || '', translation: w.translation, exEn: w.exEn || '', exRu: w.exRu || '', topic: MY_TOPIC, mine: true }));
+}
+
 export function dayKey(date = new Date()) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -144,10 +154,17 @@ export function mergeState(local, remote) {
   for (const k of new Set([...Object.keys(local.days || {}), ...Object.keys(remote.days || {})])) {
     days[k] = mergeDay(local.days?.[k], remote.days?.[k]);
   }
+  // Own words: the most recent edit wins; deletions are kept as tombstones so they don't come back.
+  const mine = { ...local.mine };
+  for (const [id, w] of Object.entries(remote.mine || {})) {
+    if (!mine[id] || (w.updated || 0) > (mine[id].updated || 0)) mine[id] = w;
+  }
   return {
-    settings: localEmpty ? { ...local.settings, ...remote.settings } : local.settings,
+    // A fresh device takes the account's settings, unless this device was just set up in onboarding.
+    settings: localEmpty && !local.settings?.onboarded ? { ...local.settings, ...remote.settings } : local.settings,
     progress,
     days,
+    mine,
   };
 }
 
