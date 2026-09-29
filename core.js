@@ -98,6 +98,59 @@ export function dayHistory(days, dir, today, n) {
   return out;
 }
 
+const weight = s => (s.reps || 0) + (s.lapses || 0);
+
+function mergeCards(a = {}, b = {}) {
+  const out = { ...a };
+  for (const [id, y] of Object.entries(b)) {
+    const x = out[id];
+    if (!x || weight(y) > weight(x) || (weight(y) === weight(x) && (y.due || '') > (x.due || ''))) out[id] = y;
+  }
+  return out;
+}
+
+const maxMap = (a = {}, b = {}) => {
+  const out = { ...a };
+  for (const [k, v] of Object.entries(b)) out[k] = Math.max(out[k] || 0, v);
+  return out;
+};
+
+function mergeDay(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  const snap = { ...a.snap };
+  for (const [d, s] of Object.entries(b.snap || {})) {
+    const cur = snap[d];
+    snap[d] = cur ? { learned: Math.max(cur.learned, s.learned), started: Math.max(cur.started, s.started) } : s;
+  }
+  return {
+    reviewed: Math.max(a.reviewed || 0, b.reviewed || 0),
+    new: maxMap(a.new, b.new),
+    known: maxMap(a.known, b.known),
+    wrong: maxMap(a.wrong, b.wrong),
+    snap,
+  };
+}
+
+// Combines this device's progress with the cloud copy without losing answers from either side.
+export function mergeState(local, remote) {
+  if (!remote?.progress) return local;
+  const localEmpty = !Object.values(local.progress || {}).some(p => Object.keys(p).length);
+  const progress = {};
+  for (const dir of new Set([...Object.keys(local.progress || {}), ...Object.keys(remote.progress)])) {
+    progress[dir] = mergeCards(local.progress?.[dir], remote.progress[dir]);
+  }
+  const days = {};
+  for (const k of new Set([...Object.keys(local.days || {}), ...Object.keys(remote.days || {})])) {
+    days[k] = mergeDay(local.days?.[k], remote.days?.[k]);
+  }
+  return {
+    settings: localEmpty ? { ...local.settings, ...remote.settings } : local.settings,
+    progress,
+    days,
+  };
+}
+
 export function streak(days, today) {
   let key = days[today]?.reviewed ? today : addDays(today, -1);
   let n = 0;
