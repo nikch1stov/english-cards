@@ -1,0 +1,17 @@
+import { webkit, devices } from 'playwright';
+import { spawn } from 'child_process';
+const start = () => spawn('python3', ['-m', 'http.server', '8766', '--bind', '127.0.0.1'], { cwd: new URL('..', import.meta.url).pathname, stdio: 'ignore' });
+let srv = start(); await new Promise(r => setTimeout(r, 800));
+const b = await webkit.launch();
+const ctx = await b.newContext({ ...devices['iPhone 14'] });
+const p = await ctx.newPage();
+const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (/Content Security|Refused/i.test(m.text())) errs.push(m.text()); });
+await p.goto('http://127.0.0.1:8766/'); await p.tap('#splash'); await p.waitForSelector('.login');
+await p.evaluate(() => navigator.serviceWorker.ready); await p.waitForTimeout(2000);
+await p.reload(); await p.waitForSelector('.login'); await p.waitForTimeout(1000);
+srv.kill(); await new Promise(r => setTimeout(r, 500));
+const t = Date.now();
+await p.goto('http://127.0.0.1:8766/'); await p.waitForSelector('.login', { timeout: 15000 });
+console.log('server down -> app still opens from cache in', Date.now() - t, 'ms | words ok:', await p.evaluate(() => !document.querySelector('.empty')));
+console.log('errors:', errs);
+await b.close();
