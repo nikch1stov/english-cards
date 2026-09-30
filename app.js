@@ -175,7 +175,7 @@ const ICONS = {
   check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
   chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chevron"/></svg>',
-  flame: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c.5 3-1.5 4.5-3 6.5-1.3 1.7-2 3.3-2 5.2A5 5 0 0 0 12 19.5a5 5 0 0 0 5-5.3c0-2.6-1.4-4.2-2.4-5.4-.2 1.3-.8 2.2-1.7 2.7.4-3.2-.2-6.3-.9-9z" fill="currentColor"/></svg>',
+  flame: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c.5 3-1.5 4.5-3 6.5-1.3 1.7-2 3.3-2 5.2A5 5 0 0 0 12 19.5a5 5 0 0 0 5-5.3c0-2.6-1.4-4.2-2.4-5.4-.2 1.3-.8 2.2-1.7 2.7.4-3.2-.2-6.3-.9-9z" fill="currentColor"/><path class="flame-core" d="M12.2 10.5c.2 1.6-.8 2.4-1.6 3.4-.6.8-.9 1.5-.9 2.3a2.3 2.3 0 0 0 2.3 2.3 2.3 2.3 0 0 0 2.3-2.4c0-1.2-.6-1.9-1.1-2.5-.1.6-.4 1-.8 1.2.2-1.5-.1-2.9-.2-4.3z"/></svg>',
   play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>',
 };
 
