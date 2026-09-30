@@ -1253,6 +1253,7 @@ function finishOnboarding() {
 const DICT_FILTERS = { all: 'Все', fresh: 'Новые', learning: 'Изучаю', learned: 'Выучено' };
 let dictQuery = '';
 let dictFilter = 'all';
+let dictToken = 0; // bumped on every redraw, so a late chunk of an older list is dropped
 let dictFrame = 0;
 
 function wordStatus(c) {
@@ -1292,6 +1293,7 @@ function renderDict() {
 function renderDictList() {
   const box = document.getElementById('dict-list');
   if (!box) return;
+  const token = ++dictToken;
   const q = dictQuery.trim().toLowerCase();
   const groups = topics
     .map(t => ({
@@ -1305,7 +1307,7 @@ function renderDictList() {
     box.innerHTML = `<div class="empty card-surface">${buddy('sad', 56)}<p class="muted">Ничего не нашлось. Попробуй другое слово.</p></div>`;
     return;
   }
-  box.innerHTML = groups.map(g => `
+  const html = groups.map(g => `
     <h2 class="group-title">${esc(g.name)}</h2>
     <ul class="list card-surface">
       ${g.items.map(c => c.mine ? `
@@ -1328,7 +1330,17 @@ function renderDictList() {
           </span>
           ${statusDot(c)}
         </li>`).join('')}
-    </ul>`).join('');
+    </ul>`);
+  // The first screenful shows at once; the rest of the 500 words is added right after that frame is painted,
+  // so the tab opens without a pause.
+  let first = 0;
+  for (let rows = 0; first < groups.length && rows < 30; first++) rows += groups[first].items.length;
+  box.innerHTML = html.slice(0, first).join('');
+  if (first < html.length) {
+    requestAnimationFrame(() => setTimeout(() => {
+      if (token === dictToken && box.isConnected) box.insertAdjacentHTML('beforeend', html.slice(first).join(''));
+    }, 0));
+  }
 }
 
 // ---------- own words ----------
@@ -1613,49 +1625,52 @@ function show(name) {
 }
 
 // A finger that lands on the page while it is still gliding (or drags before lifting) is scrolling, not pressing.
-// The fixed tab bar doesn't scroll, so it answers at once, like a native tab bar.
+// The tab bar doesn't scroll, so it answers every tap, like a native tab bar.
 // The touchstart listener also lets iPhone show the :active pressed state.
 let touch = null;
 let lastScroll = -Infinity;
-let armed = null;
-let disarmTimer;
-// The invisible haptic switch ignores the finger until it is armed here: a native switch that receives the touch
-// itself grabs the drag, and a list covered with them can't be scrolled. Arming on touchstart still lets
-// the tap that follows land on the switch and vibrate.
-function disarm() {
-  clearTimeout(disarmTimer);
-  armed?.classList.remove('armed');
-  armed = null;
-}
 addEventListener('scroll', () => { lastScroll = performance.now(); }, { capture: true, passive: true });
 addEventListener('touchstart', e => {
   const t = e.touches[0];
   const now = performance.now();
   const inTabs = !!e.target.closest?.('#tabs');
-  touch = { x: t.clientX, y: t.clientY, at: now, moved: false, gliding: !inTabs && now - lastScroll < 100 };
-  disarm();
-  if (e.touches.length === 1 && !touch.gliding) {
-    armed = e.target.closest?.('label, #splash')?.querySelector(':scope > .hx') || null;
-    armed?.classList.add('armed');
-  }
+  touch = { x: t.clientX, y: t.clientY, at: now, moved: false, inTabs, gliding: !inTabs && now - lastScroll < 100 };
 }, { capture: true, passive: true });
 addEventListener('touchmove', e => {
   const t = e.touches[0];
-  if (touch && Math.hypot(t.clientX - touch.x, t.clientY - touch.y) > 8) { touch.moved = true; disarm(); }
+  if (touch && Math.hypot(t.clientX - touch.x, t.clientY - touch.y) > 8) touch.moved = true;
 }, { capture: true, passive: true });
-addEventListener('touchend', () => { clearTimeout(disarmTimer); disarmTimer = setTimeout(disarm, 700); }, { capture: true, passive: true });
-addEventListener('touchcancel', disarm, { capture: true, passive: true });
-const scrollTap = () => !!touch && performance.now() - touch.at < 1500 && (touch.moved || touch.gliding);
+const scrollTap = () => !!touch && !touch.inTabs && performance.now() - touch.at < 1500 && (touch.moved || touch.gliding);
+const hapticSwitch = el => (el.tagName === 'LABEL' ? el.querySelector(':scope > .hx') : null);
 
+// Haptics come from the invisible switch (.hx) toggling. Where the page doesn't scroll (tab bar, lesson, alert,
+// splash) the finger lands on the switch itself. In scrolling content the switch lets touches through, because
+// a native switch under the finger swallows the scroll; there the tap lands on the label, and the label's
+// own activation toggles the switch. What's under the finger never changes mid-tap: iOS drops such taps.
+let labelTap = null;
 document.addEventListener('click', e => {
-  if (scrollTap()) return;
+  if (scrollTap()) {
+    // Keep the label from toggling its switch, so an ignored tap doesn't vibrate.
+    const row = e.target.closest?.('label');
+    if (row && hapticSwitch(row)) e.preventDefault();
+    return;
+  }
   const el = e.target.closest('[data-speak],[data-grade],[data-study],[data-go],[data-dir],[data-new],[data-range],[data-set-theme],[data-haptics],[data-dict-filter],[data-edit],[data-ob],[data-action],[data-reveal]');
   if (!el) return;
-  // A tap on the invisible switch must keep its default action — that toggle is what vibrates the iPhone.
-  const viaSwitch = e.target.classList?.contains('hx');
-  if (!viaSwitch) e.preventDefault();
-  if (viaSwitch) setTimeout(() => act(el), 0);
-  else act(el);
+  // The switch toggled — keep its default action, that toggle is what vibrates the iPhone.
+  if (e.target.classList?.contains('hx')) {
+    labelTap = null;
+    setTimeout(() => act(el), 0);
+    return;
+  }
+  // A tap on the label: let it pass to the switch, which calls back above; act here only if that didn't happen.
+  if (el === e.target.closest('label') && hapticSwitch(el)) {
+    labelTap = el;
+    setTimeout(() => { if (labelTap === el) { labelTap = null; act(el); } }, 0);
+    return;
+  }
+  e.preventDefault();
+  act(el);
 });
 
 function act(el) {

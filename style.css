@@ -644,10 +644,10 @@ body[data-screen="onboarding"] #app { padding-bottom: calc(env(safe-area-inset-b
   border-radius: inherit;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  pointer-events: none; /* armed by app.js on touchstart, so the switch never grabs a scroll */
+  pointer-events: none; /* in scrolling content the label passes the tap on (see app.js), so the switch never grabs a scroll */
 }
-.hx.armed { pointer-events: auto; }
-@media (hover: hover) { .hx { pointer-events: auto; } }
+/* where nothing scrolls, the finger lands on the switch itself */
+#tabs .hx, #splash > .hx, .alert .hx, body[data-screen="study"] #app .hx { pointer-events: auto; }
 #splash .splash-inner { z-index: 2; pointer-events: none; }
 #splash .speak-btn { pointer-events: auto; }
 
