@@ -4,7 +4,7 @@ Flashcard PWA for learning English words on iPhone (Russian UI). Vanilla JS, no 
 
 ## Files
 
-- `index.html` — shell, CSP meta, SVG sprite, tab bar. `app.js` — all screens and logic. `core.js` — pure logic (parsing, scheduling, merge). `mascot.js` — letter mascots. `cloud.js` + `config.js` — Supabase auth and sync. `sw.js` — service worker. `style.css` — design system.
+- `index.html` — shell, CSP meta, SVG sprite, tab bar. `app.js` — all screens and logic. `core.js` — pure logic (parsing, scheduling, merge). `mascot.js` — letter mascots and the streak digit mascots (0–9) for «Урок пройден». `cloud.js` + `config.js` — Supabase auth and sync. `sw.js` — service worker. `style.css` — design system.
 - `words.md` — the word list, copied from the Obsidian vault by `./sync-words.sh` (which also commits and pushes). Do not edit it by hand; edit the Obsidian file `Иностранные языки/Словарь/500 английских слов.md` (Spaced Repetition plugin format: `word [IPA]` / `?` / translation / `Пример: EN - RU.`, blank line between cards).
 - `supabase/schema.sql` — table `user_state` (one jsonb row per user, RLS own-row only).
 - `tests/` — Playwright (WebKit, iPhone 14) scripts; see `tests/README.md`.

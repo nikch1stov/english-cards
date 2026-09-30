@@ -358,9 +358,11 @@ body[data-screen="onboarding"] #app { padding-bottom: calc(env(safe-area-inset-b
 .dot.dashed { background: none; width: 14px; height: 0; border-radius: 0; border-top: 2px dashed var(--faint); }
 
 .meter { display: flex; height: 10px; margin: 14px 0 12px; border-radius: 999px; overflow: hidden; background: var(--track); }
-.meter > span { height: 100%; transition: width .6s var(--ease); }
-.meter .learned { background: var(--primary); }
-.meter .learning { background: var(--learning); }
+.meter > span { height: 100%; border-radius: 999px; transition: width .6s var(--ease); }
+/* Both parts are capsules: the learning part starts under the learned one and shows its own rounded end. */
+.meter .learned { position: relative; z-index: 1; background: var(--primary); }
+.meter .learning { width: calc(var(--w) + 10px); margin-left: -10px; background: var(--learning); }
+.meter .learning[style*="--w:0%"] { display: none; }
 
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--t-foot); color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -488,15 +490,24 @@ body[data-screen="onboarding"] #app { padding-bottom: calc(env(safe-area-inset-b
 
 /* ---------- done ---------- */
 
-.done { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; padding: 20px 8px; }
+.done { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 20px 0 0; }
+.done-hero { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 0 8px; }
+.done-hero > p { max-width: 320px; }
+.done-foot { width: 100%; display: flex; flex-direction: column; gap: 16px; }
 .done h1 { font-size: var(--t-title1); font-weight: 700; }
-.done > p { max-width: 320px; }
 .done-mascot { margin-bottom: 4px; }
+
+/* the streak as digit mascots with a flickering flame */
+.streak-hero { position: relative; display: flex; align-items: flex-end; padding-right: calc(var(--digit) * .3); }
+.streak-hero .mascot + .mascot { margin-left: calc(var(--digit) * -.16); }
+.streak-hero .mascot:nth-of-type(2) .m-body { animation-delay: .12s; }
+.streak-hero .mascot:nth-of-type(3) .m-body { animation-delay: .24s; }
+.streak-flame { position: absolute; right: 0; top: calc(var(--digit) * -.1); width: calc(var(--digit) * .52); height: calc(var(--digit) * .52); transform-origin: 50% 85%; animation: flicker 1.3s ease-in-out infinite; }
+@keyframes flicker { 0%, 100% { transform: scale(1) rotate(-3deg); } 50% { transform: scale(1.08, .94) rotate(4deg); } }
 .done-stats {
   width: 100%;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  margin: 10px 0 4px;
   padding: 16px 8px;
   background: var(--surface);
   border-radius: var(--radius);
@@ -507,15 +518,8 @@ body[data-screen="onboarding"] #app { padding-bottom: calc(env(safe-area-inset-b
 .done-stats span { color: var(--muted); font-size: var(--t-cap); }
 .done-streak { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-ink); font-weight: 600; }
 .done-streak svg { width: 20px; height: 20px; color: var(--accent); }
-.done .btn { margin-top: 12px; }
 
-.confetti { position: fixed; left: 50%; top: 34%; z-index: 20; pointer-events: none; }
-.confetti i {
-  position: absolute;
-  border-radius: 2px;
-  opacity: 0;
-  animation: confetti 2.2s var(--ease) var(--d) forwards;
-}
+.confetti { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none; }
 
 /* ---------- stats ---------- */
 
@@ -524,7 +528,7 @@ body[data-screen="onboarding"] #app { padding-bottom: calc(env(safe-area-inset-b
 .tile { padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; position: relative; }
 .tile b { font-size: var(--t-title1); font-weight: 700; line-height: 1.15; }
 .tile span { color: var(--muted); font-size: var(--t-foot); }
-.tile .tile-icon { position: absolute; top: 14px; right: 14px; width: 22px; height: 22px; color: var(--accent); }
+.tile .tile-icon { position: absolute; top: 50%; right: 10px; width: 56px; height: 56px; transform: translateY(-50%); color: var(--accent); }
 .tile-icon svg { width: 100%; height: 100%; }
 
 /* Segmented control, iOS 26 capsule style */
@@ -968,12 +972,6 @@ body[data-screen="study"] #toast, body[data-screen="word"] #toast, body[data-scr
 }
 @keyframes shadow { 35% { transform: scale(.6); opacity: .06; } }
 @keyframes floatZ { 0% { opacity: 0; transform: translate(0, 6px); } 40% { opacity: 1; } 100% { opacity: 0; transform: translate(6px, -10px); } }
-@keyframes confetti {
-  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
-  30% { opacity: 1; transform: translate(calc(var(--x) * .6), var(--up)) rotate(calc(var(--r) * .4)); }
-  100% { opacity: 0; transform: translate(var(--x), 60vh) rotate(var(--r)); }
-}
-
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .22s; animation-timing-function: var(--ease); }
 
 /* Reduce Transparency: solid bars and alerts instead of glass */

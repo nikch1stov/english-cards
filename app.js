@@ -1,5 +1,5 @@
 import { parseWords, myCards, MY_TOPIC, dayKey, addDays, schedule, buildQueue, streak, dayHistory, mergeState, stripDir, LEARNED_IVL } from './core.js?v=9';
-import { mascot, LETTERS } from './mascot.js?v=7';
+import { mascot, streakMascot, LETTERS } from './mascot.js?v=8';
 import { cloudEnabled, getClient, signInWithGoogle, signOut, pullState, pushState, userProfile } from './cloud.js?v=10';
 
 const STORE_KEY = 'english-cards:v1';
@@ -272,21 +272,68 @@ function toast(text, mood) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 1900);
 }
 
-function confetti() {
+// Paper confetti with real physics: a burst up and out from the mascot, then gravity, air drag
+// and a flutter as each piece turns over, until everything has fallen off the bottom of the screen.
+function confetti(from) {
   if (REDUCED_MOTION.matches) return;
-  const colors = ['#FFD16B', '#FF6D47', '#FFD16B', '#FF6D47', '#FFF2D6'];
-  const box = document.createElement('div');
-  box.className = 'confetti';
-  box.innerHTML = Array.from({ length: 48 }, (_, i) => {
-    const x = (Math.random() * 2 - 1) * 180;
-    const up = -(120 + Math.random() * 160);
-    const r = Math.round(Math.random() * 720 - 360);
-    const d = (Math.random() * 0.25).toFixed(2);
-    const w = 6 + Math.round(Math.random() * 5);
-    return `<i style="--x:${x}px;--up:${up}px;--r:${r}deg;--d:${d}s;width:${w}px;height:${Math.round(w * 1.6)}px;background:${colors[i % colors.length]}"></i>`;
-  }).join('');
-  document.body.append(box);
-  setTimeout(() => box.remove(), 2600);
+  const colors = ['#FFD16B', '#FF6D47', '#FFD16B', '#FF6D47', '#C8401D', '#FFF2D6'];
+  const W = innerWidth, H = innerHeight, dpr = devicePixelRatio || 1;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'confetti';
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  document.body.append(canvas);
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const r = from?.getBoundingClientRect();
+  const ox = r ? r.left + r.width / 2 : W / 2;
+  const oy = r ? r.top + r.height * 0.4 : H * 0.34;
+  const pieces = Array.from({ length: 90 }, (_, i) => {
+    const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.9;
+    const speed = 480 + Math.random() * 520;
+    return {
+      x: ox + (Math.random() - 0.5) * 40, y: oy,
+      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+      w: 7 + Math.random() * 5, h: 10 + Math.random() * 8,
+      rot: Math.random() * Math.PI * 2, spin: (Math.random() - 0.5) * 14,
+      flip: Math.random() * Math.PI * 2, flipSpeed: 6 + Math.random() * 8,
+      sway: Math.random() * Math.PI * 2, delay: Math.random() * 0.12,
+      color: colors[i % colors.length],
+    };
+  });
+  const GRAVITY = 1500, DRAG = 2.2, FALL = 190;
+  let last = performance.now(), age = 0;
+  const frame = now => {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    age += dt;
+    ctx.clearRect(0, 0, W, H);
+    let alive = 0;
+    for (const p of pieces) {
+      if (age < p.delay || p.y > H + 40) continue;
+      alive++;
+      p.vy += GRAVITY * dt;
+      p.vx -= p.vx * DRAG * dt;
+      p.vy -= p.vy * DRAG * dt * 0.6;
+      if (p.vy > FALL) p.vy = FALL + (p.vy - FALL) * 0.9; // paper reaches terminal speed and flutters down
+      p.sway += dt * 3;
+      p.x += (p.vx + Math.sin(p.sway) * 40) * dt;
+      p.y += p.vy * dt;
+      p.rot += p.spin * dt;
+      p.flip += p.flipSpeed * dt;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.scale(1, Math.cos(p.flip));
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    if (alive || age < 0.2) requestAnimationFrame(frame);
+    else canvas.remove();
+  };
+  requestAnimationFrame(frame);
+  setTimeout(() => canvas.remove(), 9000);
 }
 
 // ---------- letter of the session ----------
@@ -713,7 +760,7 @@ function renderHome() {
     <section class="card-surface pad">
       <div class="row"><h2 class="h3">Мой словарь</h2><span class="muted num">${all.learned} / ${all.total}</span></div>
       <div class="meter">
-        <span class="learned" style="width:${(all.learned / (all.total || 1)) * 100}%"></span><span class="learning" style="width:${(learning / (all.total || 1)) * 100}%"></span>
+        <span class="learned" style="width:${(all.learned / (all.total || 1)) * 100}%"></span><span class="learning" style="--w:${(learning / (all.total || 1)) * 100}%"></span>
       </div>
       <div class="legend">
         <span><i class="dot learned"></i>Выучено ${all.learned}</span>
@@ -780,26 +827,31 @@ function renderDone() {
   const had = session.total > 0;
   const acc = had ? Math.round((session.firstTry / session.total) * 100) : 0;
   const s = streak(state.days, today());
+  // After a lesson the streak itself celebrates: its digits come alive next to the fire.
   app.innerHTML = `
     <section class="done">
-      <div class="done-mascot">${buddy(had ? 'celebrate' : 'sleep', 150, had ? 'jump' : 'idle')}</div>
-      <h1>${had ? 'Урок пройден!' : 'Здесь пока пусто'}</h1>
-      <p class="muted">${had
-        ? `${LETTER === 'A' ? 'Эй' : `Буква ${LETTER}`} гордится тобой. Слова вернутся, когда их пора будет повторить.`
-        : 'Здесь все слова уже в работе, а повторять их пока рано. Загляни позже или выбери другую тему.'}</p>
-      ${had ? `
-        <div class="done-stats">
-          <div><b>${session.total}</b><span>${cardsWord(session.total)}</span></div>
-          <div><b>${acc}%</b><span>с первого раза</span></div>
-          <div><b>${session.fresh}</b><span>новых слов</span></div>
-        </div>
-        ${s ? `<p class="done-streak">${ICONS.flame}${s} ${plural(s, 'день', 'дня', 'дней')} подряд</p>` : ''}` : ''}
-      <button type="button" class="btn primary block" data-go="home">Продолжить</button>
+      <div class="done-hero">
+        <div class="done-mascot">${had && s ? streakMascot(s) : buddy(had ? 'celebrate' : 'sleep', 150, had ? 'jump' : 'idle')}</div>
+        <h1>${had ? 'Урок пройден!' : 'Здесь пока пусто'}</h1>
+        <p class="muted">${had
+          ? `${s ? 'Так держать!' : `${LETTER === 'A' ? 'Эй' : `Буква ${LETTER}`} гордится тобой.`} Слова вернутся, когда их пора будет повторить.`
+          : 'Здесь все слова уже в работе, а повторять их пока рано. Загляни позже или выбери другую тему.'}</p>
+        ${had && s ? `<p class="done-streak">${ICONS.flame}${s} ${plural(s, 'день', 'дня', 'дней')} подряд</p>` : ''}
+      </div>
+      <div class="done-foot">
+        ${had ? `
+          <div class="done-stats">
+            <div><b>${session.total}</b><span>${cardsWord(session.total)}</span></div>
+            <div><b>${acc}%</b><span>с первого раза</span></div>
+            <div><b>${session.fresh}</b><span>новых слов</span></div>
+          </div>` : ''}
+        <button type="button" class="btn primary block" data-go="home">Продолжить</button>
+      </div>
     </section>`;
   if (had && !session.celebrated) {
     session.celebrated = true;
     saveSession();
-    confetti();
+    confetti(app.querySelector('.done-mascot'));
     haptic('success');
   }
 }
