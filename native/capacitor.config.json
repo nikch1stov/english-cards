@@ -1,0 +1,10 @@
+{
+  "appId": "com.nikchistov.englishcards",
+  "appName": "Карточки",
+  "webDir": "www",
+  "backgroundColor": "#FFFCF6",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#FFFCF6"
+  }
+}

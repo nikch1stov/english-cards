@@ -1,4 +1,5 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js?v=9';
+import { isNative, AUTH_REDIRECT, authSession } from './native.js?v=2';
 
 export const cloudEnabled = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
@@ -18,11 +19,33 @@ export async function getClient() {
 
 export async function signInWithGoogle() {
   const sb = await getClient();
+  if (isNative) return signInNative(sb);
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: location.origin + location.pathname },
   });
   if (error) throw error;
+}
+
+// In the app Google runs in the system sign-in sheet, which returns englishcards://auth?code=…;
+// the code is exchanged here (PKCE), and onAuthStateChange takes it from there. Closing the sheet is not an error.
+async function signInNative(sb) {
+  const { data, error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: AUTH_REDIRECT, skipBrowserRedirect: true },
+  });
+  if (error) throw error;
+  let back;
+  try {
+    back = new URL(await authSession(data.url));
+  } catch (e) {
+    if (e?.code === 'CANCELED') return;
+    throw e;
+  }
+  const params = new URLSearchParams(back.search || back.hash.slice(1));
+  if (params.get('error')) throw new Error(params.get('error_description') || params.get('error'));
+  const { error: exchange } = await sb.auth.exchangeCodeForSession(params.get('code'));
+  if (exchange) throw exchange;
 }
 
 export async function signOut() {

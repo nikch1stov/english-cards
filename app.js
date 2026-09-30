@@ -1,12 +1,15 @@
 import { parseWords, myCards, MY_TOPIC, dayKey, addDays, schedule, buildQueue, streak, dayHistory, mergeState, stripDir, LEARNED_IVL, ENERGY, energyNow, energyAdd } from './core.js?v=10';
 import { mascot, streakMascot, LETTERS } from './mascot.js?v=8';
-import { cloudEnabled, getClient, signInWithGoogle, signOut, pullState, pushState, userProfile } from './cloud.js?v=10';
+import { cloudEnabled, getClient, signInWithGoogle, signOut, pullState, pushState, userProfile } from './cloud.js?v=12';
+import { isNative, feel, statusBarFor } from './native.js?v=2';
 
 const STORE_KEY = 'english-cards:v1';
 const SESSION_KEY = 'english-cards:session';
 const SCREEN_KEY = 'english-cards:screen';
 const GREET_KEY = 'english-cards:greet';
 const GREETED_KEY = 'english-cards:greeted';
+const WORDS_KEY = 'english-cards:words';
+const WORDS_URL = 'https://nikch1stov.github.io/english-cards/words.md';
 const LETTER_KEY = 'english-cards:letter';
 const OWNER_KEY = 'english-cards:owner';
 const THEMES = { auto: 'Авто', light: 'Светлая', dark: 'Тёмная' };
@@ -249,6 +252,7 @@ function ask({ title, message = '', action, destructive = false }) {
       const b = e.target.closest('[data-alert]');
       if (!b) return;
       e.stopPropagation();
+      if (isNative) haptic();
       if (!e.target.classList.contains('hx')) e.preventDefault();
       done(b.dataset.alert === '1');
     });
@@ -377,17 +381,31 @@ function applyTheme() {
     const own = m.media.includes('dark') ? 'dark' : 'light';
     m.content = THEME_COLORS[t === 'light' || t === 'dark' ? t : own];
   });
+  statusBarFor(t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches));
 }
 
 // ---------- haptics ----------
 
 // iPhone Safari has no Vibration API and ignores scripted clicks, but a finger tap that toggles a native
 // <input type=checkbox switch> plays the system haptic. So tappable controls carry an invisible switch on top.
-const HX = () => (state.settings.haptics ? '<input type="checkbox" switch class="hx" tabindex="-1" aria-hidden="true">' : '');
+// The iPhone app has the real Taptic Engine instead: no switch, and every tapped control calls haptic().
+const HX = () => (state.settings.haptics && !isNative ? '<input type="checkbox" switch class="hx" tabindex="-1" aria-hidden="true">' : '');
 
+// Kinds: light (a control), select (a tab), know, error, success, pay (a lesson done, like Apple Pay), launch.
+const VIBRATE = { light: 12, select: 8, know: 14, success: [14, 70, 14, 70, 24], pay: [18, 90, 40], error: [30, 60, 30] };
+let lastTapHaptic = 0;
 function haptic(kind = 'light') {
-  if (!state.settings.haptics || !navigator.vibrate) return;
-  navigator.vibrate({ light: 12, success: [14, 70, 14, 70, 24], error: [30, 60, 30] }[kind]);
+  if (!state.settings.haptics) return;
+  if (isNative) {
+    // A tap and the action it starts may both ask for a tick; the finger should feel one.
+    if (kind === 'light' || kind === 'select') {
+      if (performance.now() - lastTapHaptic < 120) return;
+      lastTapHaptic = performance.now();
+    }
+    feel(kind);
+    return;
+  }
+  if (navigator.vibrate && VIBRATE[kind]) navigator.vibrate(VIBRATE[kind]);
 }
 
 function refreshTabHaptics() {
@@ -496,10 +514,12 @@ function showSplash() {
       <p class="splash-hint">Нажми, чтобы начать</p>
     </div>`;
   document.body.append(el);
+  // A soft hello the moment the mascot lands (its rise ends at .95s, see #splash .mascot in style.css).
+  setTimeout(() => { if (!el.classList.contains('out')) haptic('launch'); }, 900);
   function close() {
     if (el.classList.contains('out')) return;
     el.classList.add('out');
-    setTimeout(() => el.remove(), 450);
+    setTimeout(() => el.remove(), 600);
   }
   // The speaker gets its own listener: iOS only turns a tap into a click on elements it considers clickable.
   const speaker = el.querySelector('[data-speak]');
@@ -861,7 +881,7 @@ function renderDone() {
     session.celebrated = true;
     saveSession();
     confetti(app.querySelector('.done-mascot'));
-    haptic('success');
+    haptic('pay');
   }
 }
 
@@ -944,7 +964,7 @@ function grade(known) {
 
   const firstTime = !session.seen.includes(card.id);
   if (firstTime) session.seen.push(card.id);
-  haptic(known ? 'light' : 'error');
+  haptic(known ? 'know' : 'error');
   if (known) {
     session.done += 1;
     if (firstTime) session.firstTry += 1;
@@ -1708,7 +1728,7 @@ function renderSettings() {
         <label class="switch"><input type="checkbox" data-haptics ${state.settings.haptics ? 'checked' : ''} aria-label="Вибрация"><span></span></label>
       </div>
     </section>
-    <p class="group-note">Вибрация на iPhone работает начиная с iOS 18.</p>
+    ${isNative ? '' : '<p class="group-note">Вибрация на iPhone работает начиная с iOS 18.</p>'}
 
 
     <h2 class="group-title">Обучение</h2>
@@ -1848,6 +1868,8 @@ document.addEventListener('click', e => {
 
 function act(el) {
   const d = el.dataset;
+  // Grades have their own feel (know / error), so they skip the generic tap.
+  if (isNative && el.tagName === 'LABEL' && d.grade === undefined) haptic(el.closest('#tabs') ? 'select' : 'light');
 
   if (d.speak !== undefined) { speak(d.speak, el); return; }
   if (d.grade !== undefined) { pressGrade(el, d.grade === '1'); return; }
@@ -1893,10 +1915,34 @@ function act(el) {
   }
 }
 
-async function loadWords() {
+// The app carries its own copy of the list and keeps the newest one it has fetched from the website,
+// so new words arrive without an app update. Of the two copies it uses the one with more cards.
+async function loadWords({ fresh = false } = {}) {
+  if (isNative && fresh) {
+    const res = await fetch(WORDS_URL, { cache: 'no-cache' });
+    if (!res.ok) throw new Error(res.status);
+    const md = await res.text();
+    baseCards = parseWords(md);
+    try { localStorage.setItem(WORDS_KEY, md); } catch {}
+    return;
+  }
   const res = await fetch('words.md', { cache: 'no-cache' });
   if (!res.ok) throw new Error(res.status);
   baseCards = parseWords(await res.text());
+  if (!isNative) return;
+  let saved = null;
+  try { saved = localStorage.getItem(WORDS_KEY); } catch {}
+  const newer = saved ? parseWords(saved) : [];
+  if (newer.length > baseCards.length) baseCards = newer;
+}
+
+// In the app: fetch the website's list in the background and redraw only if it brought new words.
+async function refreshWords() {
+  const before = baseCards.length;
+  try { await loadWords({ fresh: true }); } catch { return; }
+  if (baseCards.length === before) return;
+  rebuildCards();
+  if (['home', 'dict', 'settings'].includes(screen)) SCREENS[screen]();
 }
 
 async function reloadWords(btn) {
@@ -1905,7 +1951,7 @@ async function reloadWords(btn) {
   btn.disabled = true;
   btn.textContent = 'Обновляю…';
   try {
-    await loadWords();
+    await loadWords({ fresh: true });
   } catch {
     toast('Нет связи — не получилось обновить словарь', 'sad');
     renderSettings();
@@ -1933,9 +1979,11 @@ async function init() {
   await initCloud(clientReady);
   if (needsLogin()) renderLogin();
   else enterApp();
+  if (isNative) refreshWords();
 }
 
-if ('serviceWorker' in navigator && window.isSecureContext) {
+// Inside the iPhone app every file is already on the phone; the service worker is for the website.
+if (!isNative && 'serviceWorker' in navigator && window.isSecureContext) {
   navigator.serviceWorker.register('sw.js');
 }
 if ('speechSynthesis' in window) speechSynthesis.getVoices();

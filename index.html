@@ -10,14 +10,14 @@
   <meta name="apple-mobile-web-app-title" content="Карточки">
   <meta name="theme-color" content="#FFFCF6" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#FFFCF6" media="(prefers-color-scheme: dark)">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.googleusercontent.com; connect-src 'self' https://cdn.jsdelivr.net https://pcvlpnqgkwyzuhsjnszk.supabase.co wss://pcvlpnqgkwyzuhsjnszk.supabase.co https://api.mymemory.translated.net https://en.wiktionary.org; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.googleusercontent.com; connect-src 'self' https://cdn.jsdelivr.net https://pcvlpnqgkwyzuhsjnszk.supabase.co wss://pcvlpnqgkwyzuhsjnszk.supabase.co https://api.mymemory.translated.net https://en.wiktionary.org https://nikch1stov.github.io; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://pcvlpnqgkwyzuhsjnszk.supabase.co" crossorigin>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-180.png?v=5">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=29">
+  <link rel="stylesheet" href="style.css?v=32">
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -25,7 +25,7 @@
     <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   </svg>
   <main id="app"><p class="loading">Загрузка…</p></main>
-  <nav id="tabs" aria-label="Разделы">
+  <nav id="tabs" aria-label="Разделы" hidden>
     <label role="button" data-go="home">
       <span class="tab-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6" width="13" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8 3h9.5A3 3 0 0 1 20.5 6v11.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></span>
       Учить
@@ -43,6 +43,6 @@
       Профиль
     </label>
   </nav>
-  <script type="module" src="app.js?v=28"></script>
+  <script type="module" src="app.js?v=32"></script>
 </body>
 </html>

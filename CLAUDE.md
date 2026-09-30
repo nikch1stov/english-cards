@@ -6,6 +6,7 @@ Flashcard PWA for learning English words on iPhone (Russian UI). Vanilla JS, no 
 
 - `index.html` — shell, CSP meta, SVG sprite, tab bar. `app.js` — all screens and logic. `core.js` — pure logic (parsing, scheduling, merge). `mascot.js` — letter mascots and the streak digit mascots (0–9) for «Урок пройден». `cloud.js` + `config.js` — Supabase auth and sync. `sw.js` — service worker. `style.css` — design system.
 - `words.md` — the word list, copied from the Obsidian vault by `./sync-words.sh` (which also commits and pushes). Do not edit it by hand; edit the Obsidian file `Иностранные языки/Словарь/500 английских слов.md` (Spaced Repetition plugin format: `word [IPA]` / `?` / translation / `Пример: EN - RU.`, blank line between cards).
+- `native/` — the iPhone app: Capacitor 8 wraps the website (bundle id `com.nikchistov.englishcards`, name «Карточки»). `npm run sync` copies the web files into `native/www` (`copy-web.mjs`, which lists them — add new web files there) and updates `native/ios`. The Xcode project is `native/ios/App/App.xcodeproj`; `App/AuthSession.swift` holds the Google sign-in plugin, registered by `MainViewController`, which `SceneDelegate` sets as the root view controller (Capacitor 8 does not use Main.storyboard for it). `native.js` (web side) calls native code via `window.Capacitor.nativePromise`; on the website `isNative` is false and every call does nothing.
 - `supabase/schema.sql` — table `user_state` (one jsonb row per user, RLS own-row only).
 - `tests/` — Playwright (WebKit, iPhone 14) scripts; see `tests/README.md`.
 
@@ -22,6 +23,7 @@ Flashcard PWA for learning English words on iPhone (Russian UI). Vanilla JS, no 
 - A progress reset is recorded in `state.resets[dir]`, and `mergeState` drops older answers (`at` timestamp) from other devices and the cloud.
 - The default theme is light (`settleTheme()`); tabs switch without a view transition.
 - Taps are ignored when the finger moved > 8 px or the page scrolled < 100 ms before the touch (`scrollTap`). Tests must scroll a target to the centre and wait before tapping.
+- In the app: haptics come from our Core Haptics plugin `Feedback.swift` via `haptic(kind)` (no `.hx` switches; kinds: light, select, know, error, success, pay for a finished lesson, launch), Google sign-in runs in `ASWebAuthenticationSession` and returns to `englishcards://auth` (this URL must be in Supabase → Authentication → Redirect URLs), no service worker, the status bar follows the theme, and the word list refreshes from the website (`WORDS_URL`) and is kept in localStorage.
 - Never commit secrets: only the Supabase publishable key belongs in `config.js`. No `sb_secret`, `service_role`, personal access tokens or Google client secrets.
 
 ## Design
@@ -45,4 +47,4 @@ Palette, flat colours only, no gradients anywhere (UI, mascots, icon):
 
 ## Workflow
 
-Preview on the LAN with `python3 -m http.server 8765` from this folder, check on the iPhone, and publish (commit + push to `main`) only after the owner says «публикуй». `gh` CLI is at `~/.local/bin/gh`.
+Preview on the LAN with `python3 -m http.server 8765` from this folder, check on the iPhone, and publish (commit + push to `main`) only after the owner says «публикуй». After every web change also run `cd native && npm run sync`, so the next Run in Xcode carries it; check the app on the iPhone 17 simulator (`xcodebuild … -sdk iphonesimulator CODE_SIGNING_ALLOWED=NO`, `xcrun simctl`). `gh` CLI is at `~/.local/bin/gh`.
