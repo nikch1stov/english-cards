@@ -1,4 +1,4 @@
-import { parseWords, myCards, MY_TOPIC, dayKey, addDays, schedule, buildQueue, streak, dayHistory, mergeState, stripDir, LEARNED_IVL } from './core.js?v=9';
+import { parseWords, myCards, MY_TOPIC, dayKey, addDays, schedule, buildQueue, streak, dayHistory, mergeState, stripDir, LEARNED_IVL, ENERGY, energyNow, energyAdd } from './core.js?v=10';
 import { mascot, streakMascot, LETTERS } from './mascot.js?v=8';
 import { cloudEnabled, getClient, signInWithGoogle, signOut, pullState, pushState, userProfile } from './cloud.js?v=10';
 
@@ -47,6 +47,8 @@ function loadState() {
       days: saved.days || {},
       mine: saved.mine || {},
       resets: saved.resets || {},
+      energy: saved.energy,
+      plus: saved.plus,
     };
   } catch {
     return fallback;
@@ -541,7 +543,8 @@ function claimLocalState(uid) {
 }
 
 function resetLocalProgress() {
-  state = { settings: state.settings, progress: { 'en-ru': {}, 'ru-en': {} }, days: {}, mine: {}, resets: {} };
+  // Energy stays with the device: switching accounts must not refill the battery.
+  state = { settings: state.settings, progress: { 'en-ru': {}, 'ru-en': {} }, days: {}, mine: {}, resets: {}, energy: state.energy };
   saveLocal();
   rebuildCards();
   try { sessionStorage.removeItem(SESSION_KEY); } catch {}
@@ -728,6 +731,7 @@ function renderHome() {
         <p class="eyebrow">${greeting()}${user ? `, ${esc(userProfile(user).name.split(' ')[0])}` : ''}</p>
         <div class="head-actions">
           <span class="streak ${s ? 'on' : ''}" aria-label="Серия: ${s} ${plural(s, 'день', 'дня', 'дней')} подряд">${ICONS.flame}${s}</span>
+          ${energyChip()}
           ${ADD_BTN()}
         </div>
       </div>
@@ -751,9 +755,9 @@ function renderHome() {
         </ul>
       </div>
       ${remaining
-        ? `<label class="btn primary block" role="button" data-study="*">${HX()}${ICONS.play}Начать урок</label>`
+        ? `<label class="btn primary block" role="button" data-study="*">${HX()}${ICONS.play}Начать урок${lessonCost()}</label>`
         : extra
-          ? `<label class="btn primary block" role="button" data-study="*">${HX()}${ICONS.play}Ещё ${extra} ${plural(extra, 'слово', 'слова', 'слов')}</label>`
+          ? `<label class="btn primary block" role="button" data-study="*">${HX()}${ICONS.play}Ещё ${extra} ${plural(extra, 'слово', 'слова', 'слов')}${lessonCost()}</label>`
           : '<button type="button" class="btn primary block" disabled>На сегодня всё</button>'}
     </section>
 
@@ -807,6 +811,11 @@ function startSession(key) {
   const list = topic ? topic.cards : planCards();
   // The user chose to drill words they added themselves, so all of them come at once.
   const queue = buildQueue(list, progress(), today(), topic?.mine ? Infinity : newAllowance());
+  if (queue.length && !plusOn()) {
+    if (energyState().v < ENERGY.lesson) { openEnergy(key); return; }
+    state.energy = energyAdd(state.energy, -ENERGY.lesson, Date.now());
+    saveState();
+  }
   session = {
     dir: dir(),
     queue,
@@ -1314,6 +1323,113 @@ function wordStatus(c) {
   return s.ivl >= LEARNED_IVL ? 'learned' : 'learning';
 }
 
+// ---------- energy ----------
+
+// A lesson costs energy; the battery refills by itself, from an ad, or never runs out with Plus.
+// Ads and Plus are test stand-ins for now: both work instantly and for free.
+let energyFor = null;
+let energyBack = 'home';
+const plusOn = () => !!state.plus?.on;
+const energyState = () => energyNow(state.energy, Date.now());
+
+function battery(v, cls = '') {
+  const frac = Math.max(0, Math.min(1, v / ENERGY.max));
+  const low = v < ENERGY.lesson;
+  return `<svg class="battery ${low ? 'low' : ''} ${cls}" viewBox="0 0 26 14" aria-hidden="true">
+    <rect x="1" y="1" width="21" height="12" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <rect x="23.2" y="4.5" width="2" height="5" rx="1" fill="currentColor"/>
+    <rect class="battery-fill" x="3.2" y="3.2" width="${(16.6 * frac).toFixed(1)}" height="7.6" rx="1.8"/>
+  </svg>`;
+}
+
+function bigBattery(v) {
+  const frac = plusOn() ? 1 : Math.max(0, Math.min(1, v / ENERGY.max));
+  const low = !plusOn() && v < ENERGY.lesson;
+  return `<svg class="battery big ${low ? 'low' : ''}" viewBox="0 0 124 68" aria-hidden="true">
+    <rect x="3" y="3" width="106" height="62" rx="18" fill="var(--surface)" stroke="currentColor" stroke-width="5"/>
+    <rect x="113" y="23" width="8" height="22" rx="4" fill="currentColor"/>
+    <rect class="battery-fill" x="12" y="12" width="${(88 * frac).toFixed(1)}" height="44" rx="10"/>
+    <path class="battery-bolt" d="M61 15 44 38h12l-4 16 17-24H57z"/>
+  </svg>`;
+}
+
+function waitLabel(ms) {
+  const min = Math.max(1, Math.ceil(ms / 60000));
+  const h = Math.floor(min / 60), m = min % 60;
+  return h ? `${h} ч${m ? ` ${m} мин` : ''}` : `${m} мин`;
+}
+
+function energyLine() {
+  if (plusOn()) return 'С Плюсом энергия не заканчивается';
+  const e = energyState();
+  if (!e.next) return 'Батарейка заряжена';
+  const full = e.next + (ENERGY.max - e.v - 1) * ENERGY.regen;
+  return `+1 через ${waitLabel(e.next)} · полная через ${waitLabel(full)}`;
+}
+
+const lessonCost = () => (plusOn() ? '' : `<span class="cost">${battery(ENERGY.max)}${ENERGY.lesson}</span>`);
+
+const energyChip = () => {
+  const v = energyState().v;
+  return `<label class="chip energy-chip ${plusOn() ? 'plus' : ''}" role="button" data-go="energy" aria-label="Энергия: ${plusOn() ? 'без ограничений' : v}">${HX()}${battery(plusOn() ? ENERGY.max : v)}<b data-energy-v>${plusOn() ? '∞' : v}</b></label>`;
+};
+
+function openEnergy(forLesson = null) {
+  energyFor = forLesson;
+  if (screen !== 'energy') energyBack = TAB_SCREENS.includes(screen) ? screen : 'home';
+  show('energy');
+}
+
+function renderEnergy() {
+  const v = energyState().v;
+  const empty = !plusOn() && v < ENERGY.lesson;
+  const canStart = energyFor !== null && (plusOn() || !empty);
+  app.innerHTML = `
+    <div class="sheet energy">
+      <header class="sheet-bar">
+        <span></span>
+        <h1 class="sheet-title">Энергия</h1>
+        <button type="button" class="bar-btn strong" data-go="${energyBack}">Готово</button>
+      </header>
+
+      <section class="energy-hero">
+        ${empty && energyFor !== null ? buddy('sleep', 84, 'idle') : ''}
+        ${bigBattery(v)}
+        <p class="energy-count"><b data-energy-v>${plusOn() ? '∞' : v}</b>${plusOn() ? '' : ` / ${ENERGY.max}`}</p>
+        <h2 class="energy-title">${plusOn() ? 'Плюс активен' : empty ? 'Энергия закончилась' : 'Энергия на уроки'}</h2>
+        <p class="muted" data-energy-when>${energyLine()}</p>
+      </section>
+
+      ${canStart ? `<label class="btn primary block" role="button" data-study="${esc(energyFor)}">${HX()}${ICONS.play}Начать урок</label>` : ''}
+
+      ${plusOn() ? '' : `
+        <section class="card-surface group">
+          <label class="group-row energy-row" role="button" data-action="ad">${HX()}
+            <span class="energy-icon ad">${ICONS.play}</span>
+            <span class="list-main"><span class="list-title">Посмотреть рекламу</span><span class="list-sub">+${ENERGY.ad} энергии сразу</span></span>
+          </label>
+          <label class="group-row energy-row" role="button" data-action="plus-on">${HX()}
+            <span class="energy-icon plus">${battery(ENERGY.max)}</span>
+            <span class="list-main"><span class="list-title">Подписка Плюс</span><span class="list-sub">Энергия без ограничений</span></span>
+          </label>
+        </section>`}
+      <p class="group-note">Урок стоит ${ENERGY.lesson} энергии. Батарейка заряжается сама: +1 каждые 30 минут, полная — за сутки.</p>
+
+      ${plusOn() ? '<section class="card-surface group"><button type="button" class="group-row link danger center" data-action="plus-off">Отключить Плюс</button></section>' : ''}
+      <p class="group-note">Тестовый режим: реклама и подписка пока бесплатны.</p>
+    </div>`;
+}
+
+// The countdown ticks without redrawing, so nothing under a finger changes.
+setInterval(() => {
+  if (!['home', 'energy'].includes(screen)) return;
+  const v = plusOn() ? '∞' : String(energyState().v);
+  const shown = app.querySelector('[data-energy-v]');
+  if (shown && shown.textContent !== v) { SCREENS[screen](); return; }
+  const when = app.querySelector('[data-energy-when]');
+  if (when) when.textContent = energyLine();
+}, 20000);
+
 const ADD_BTN = () => `<label class="icon-btn tinted" role="button" data-go="word" aria-label="Добавить слово">${HX()}${ICONS.plus}</label>`;
 const statusDot = c => { const st = wordStatus(c); return `<i class="dot ${st}" title="${DICT_FILTERS[st]}"></i>`; };
 
@@ -1574,6 +1690,11 @@ function renderSettings() {
 
     ${accountSection()}
 
+    <h2 class="group-title">Энергия</h2>
+    <section class="card-surface group">
+      <button type="button" class="group-row nav" data-go="energy"><span>${plusOn() ? 'Подписка Плюс' : 'Батарейка'}</span><span class="row-value">${plusOn() ? 'Активна' : `${energyState().v} / ${ENERGY.max}`}<span class="chev">${ICONS.chevron}</span></span></button>
+    </section>
+
     <h2 class="group-title">Оформление</h2>
     <section class="card-surface group">
       <div class="group-row stack">
@@ -1645,7 +1766,7 @@ async function resetProgress() {
 // ---------- navigation ----------
 
 const TAB_SCREENS = ['home', 'dict', 'stats', 'settings'];
-const SCREENS = { onboarding: renderOnboarding, wait: renderWait, home: renderHome, study: renderStudy, stats: renderStats, settings: renderSettings, dict: renderDict, word: renderWord };
+const SCREENS = { energy: renderEnergy, onboarding: renderOnboarding, wait: renderWait, home: renderHome, study: renderStudy, stats: renderStats, settings: renderSettings, dict: renderDict, word: renderWord };
 
 function show(name) {
   if (needsLogin()) { renderLogin(); return; }
@@ -1660,7 +1781,7 @@ function show(name) {
   try { sessionStorage.setItem(SCREEN_KEY, screen); } catch {}
 
   const render = () => {
-    tabs.hidden = ['study', 'word', 'onboarding', 'wait'].includes(screen);
+    tabs.hidden = ['study', 'word', 'energy', 'onboarding', 'wait'].includes(screen);
     tabs.querySelectorAll('[data-go]').forEach(b => {
       const on = b.dataset.go === screen;
       b.classList.toggle('on', on);
@@ -1733,6 +1854,7 @@ function act(el) {
   if (d.study !== undefined) { haptic(); startSession(d.study); return; }
   if (d.ob) { obAction(d.ob, el); return; }
   if (d.go === 'word') { haptic(); openWord(''); return; }
+  if (d.go === 'energy') { haptic(); openEnergy(); return; }
   if (d.go) { show(d.go); return; }
   if (d.edit !== undefined) { haptic(); openWord(d.edit); return; }
   if (d.dir) { state.settings.dir = d.dir; saveState(); renderSettings(); return; }
@@ -1751,6 +1873,18 @@ function act(el) {
   if (d.action === 'autofill') { autofill(el); return; }
   if (d.action === 'reload') { reloadWords(el); return; }
   if (d.action === 'reset') { resetProgress(); return; }
+  if (d.action === 'ad') {
+    state.energy = energyAdd(state.energy, ENERGY.ad, Date.now());
+    saveState(); renderEnergy(); haptic('success');
+    toast(`+${ENERGY.ad} энергии`, 'happy');
+    return;
+  }
+  if (d.action === 'plus-on' || d.action === 'plus-off') {
+    state.plus = { on: d.action === 'plus-on', t: Date.now() };
+    saveState(); renderEnergy(); haptic(d.action === 'plus-on' ? 'success' : 'light');
+    if (plusOn()) toast('Плюс включён — энергия без ограничений', 'celebrate');
+    return;
+  }
   if (d.reveal !== undefined && session && !session.revealed && !grading) {
     haptic();
     session.revealed = true;

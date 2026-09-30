@@ -986,3 +986,42 @@ body[data-screen="study"] #toast, body[data-screen="word"] #toast, body[data-scr
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- energy ---------- */
+
+.energy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px 0 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm), 0 0 0 1px var(--hairline);
+  font-size: var(--t-body);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  position: relative;
+}
+.energy-chip:active { opacity: .6; }
+.battery { width: 24px; height: 13px; flex: none; color: var(--muted); }
+.battery-fill { fill: var(--primary); }
+.battery.low .battery-fill { fill: var(--accent); }
+.energy-chip:has(.battery.low) { color: var(--accent-ink); }
+
+.btn .cost { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; padding: 3px 9px 3px 7px; border-radius: 999px; background: rgba(28, 26, 23, .08); font-size: var(--t-sub); font-weight: 700; }
+.btn .cost .battery { width: 20px; height: 11px; color: currentColor; }
+.btn .cost .battery-fill { fill: currentColor; }
+
+.energy-hero { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 0 6px; text-align: center; }
+.battery.big { width: 150px; height: 82px; color: var(--text); }
+.battery.big .battery-fill { transition: width .5s var(--ease); }
+.battery-bolt { fill: var(--text); }
+.energy-count { font-size: var(--t-title2); color: var(--muted); font-variant-numeric: tabular-nums; }
+.energy-count b { font-size: var(--t-large); color: var(--text); }
+.energy-title { font-size: var(--t-title3); font-weight: 700; }
+.energy-row { gap: 12px; }
+.energy-icon { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); color: var(--accent); }
+.energy-icon svg { width: 18px; height: 18px; }
+.energy-icon .battery { width: 22px; height: 12px; color: var(--accent); }

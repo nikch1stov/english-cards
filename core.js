@@ -194,7 +194,33 @@ export function mergeState(local, remote) {
     days,
     mine,
     resets,
+    energy: latest(local.energy, remote.energy),
+    plus: latest(local.plus, remote.plus),
   };
+}
+
+// The most recent change (t) wins: energy spent or added, Plus switched on or off.
+const latest = (a, b) => ((b?.t || 0) > (a?.t || 0) ? b : a);
+
+// Energy: a battery of 50 that a lesson drains by 10 and that refills by 1 every 30 minutes.
+// Stored as { v, at, t }: v was the charge at time at, t is when it last changed by hand.
+export const ENERGY = { max: 50, lesson: 10, ad: 10, regen: 30 * 60 * 1000 };
+
+// The charge now; next is the time left until the next +1 (0 when the battery is full).
+export function energyNow(e, now) {
+  if (!e || !Number.isFinite(e.v)) return { v: ENERGY.max, at: now, next: 0 };
+  if (e.v >= ENERGY.max) return { v: e.v, at: now, next: 0 };
+  const steps = Math.max(0, Math.floor((now - e.at) / ENERGY.regen));
+  const v = Math.min(ENERGY.max, e.v + steps);
+  if (v >= ENERGY.max) return { v, at: now, next: 0 };
+  const at = e.at + steps * ENERGY.regen;
+  return { v, at, next: at + ENERGY.regen - now };
+}
+
+// Adds n (negative to spend). An ad on top of a full battery may take it past 50.
+export function energyAdd(e, n, now) {
+  const cur = energyNow(e, now);
+  return { v: Math.max(0, cur.v + n), at: cur.at, t: now };
 }
 
 export function streak(days, today) {
