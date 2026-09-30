@@ -5,15 +5,15 @@ const b = await webkit.launch();
 async function page(scheme) {
   const ctx = await b.newContext({ ...devices['iPhone 14'], serviceWorkers: 'block', colorScheme: scheme });
   await ctx.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ contentType: 'text/javascript', body: fake }));
-  await ctx.addInitScript(() => {
+  await ctx.addInitScript(scheme => {
     if (localStorage.getItem('fake-session')) return;
     localStorage.setItem('fake-session', JSON.stringify({ user: { id: 'u1', email: 'n@x', user_metadata: { full_name: 'Nik' } } }));
     const d = new Date(); const k = n => { const x = new Date(d); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10); };
     const days = {}; for (let i = 20; i >= 0; i--) days[k(i)] = { reviewed: 10, new: { 'en-ru': 3 }, known: { 'en-ru': 7 + (i % 3) }, wrong: { 'en-ru': 2 }, snap: { 'en-ru': { learned: 40 - i * 2, started: 80 - i * 2 } } };
     const prog = {}; ['i', 'you', 'he', 'she', 'it', 'we', 'they'].forEach((w, i) => prog[w] = { ivl: i < 4 ? 8 : 1, reps: 3, lapses: 0, due: '2026-09-29' });
-    localStorage.setItem('english-cards:v1', JSON.stringify({ settings: { dir: 'en-ru', newPerDay: 10, onboarded: true }, progress: { 'en-ru': prog, 'ru-en': {} }, days }));
+    localStorage.setItem('english-cards:v1', JSON.stringify({ settings: { dir: 'en-ru', newPerDay: 10, onboarded: true, theme: scheme, themeSet: true }, progress: { 'en-ru': prog, 'ru-en': {} }, days }));
     sessionStorage.setItem('english-cards:letter', 'A');
-  });
+  }, scheme);
   const p = await ctx.newPage();
   p.errs = []; p.on('pageerror', e => p.errs.push(e.message)); p.on('console', m => { if (/Content Security|Refused/i.test(m.text())) p.errs.push(m.text()); });
   return p;

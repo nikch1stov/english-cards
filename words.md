@@ -87,6 +87,76 @@ Does [dʌz] / [dəz]
 (Он/она/оно) делает
 Пример: She does her homework - Она делает домашнюю работу.
 
+Me [mi:]
+?
+Меня/Мне
+Пример: Give me the book - Дай мне книгу.
+
+Him [hɪm]
+?
+Его/Ему
+Пример: I know him - Я знаю его.
+
+Her [hɜ:]
+?
+Её/Ей
+Пример: I call her every day - Я звоню ей каждый день.
+
+Us [ʌs]
+?
+Нас/Нам
+Пример: Come with us - Пойдём с нами.
+
+Them [ðem]
+?
+Их/Им
+Пример: I like them - Они мне нравятся.
+
+My [maɪ]
+?
+Мой
+Пример: This is my room - Это моя комната.
+
+Your [jɔ:]
+?
+Твой/Ваш
+Пример: What is your name? - Как тебя зовут?.
+
+His [hɪz]
+?
+Его (принадлежность)
+Пример: His car is red - Его машина красная.
+
+Our [ˈaʊə]
+?
+Наш
+Пример: Our house is small - Наш дом маленький.
+
+Their [ðeə]
+?
+Их (принадлежность)
+Пример: Their dog is big - Их собака большая.
+
+This [ðɪs]
+?
+Этот/Это
+Пример: This is my friend - Это мой друг.
+
+That [ðæt]
+?
+Тот/То
+Пример: That car is fast - Та машина быстрая.
+
+These [ði:z]
+?
+Эти
+Пример: These apples are sweet - Эти яблоки сладкие.
+
+Those [ðəʊz]
+?
+Те
+Пример: Those shoes are new - Те туфли новые.
+
 ## Вопросительные слова
 What [wɒt] / [wʌt]
 ?
@@ -261,6 +331,31 @@ Baby [ˈbeɪ.bi]
 Младенец
 Пример: The baby is crying - Младенец плачет.
 
+Parents [ˈpeərənts]
+?
+Родители
+Пример: My parents live in Moscow - Мои родители живут в Москве.
+
+Child [tʃaɪld]
+?
+Ребёнок
+Пример: The child is playing - Ребёнок играет.
+
+Friend [frend]
+?
+Друг/Подруга
+Пример: She is my best friend - Она моя лучшая подруга.
+
+Aunt [ɑ:nt]
+?
+Тётя
+Пример: My aunt is a doctor - Моя тётя врач.
+
+Uncle [ˈʌŋkl]
+?
+Дядя
+Пример: My uncle has a car - У моего дяди есть машина.
+
 ## Части тела
 Head [hed]
 ?
@@ -337,6 +432,21 @@ Heart [hɑ:t] / [hɑrt]
 Сердце
 Пример: My heart is beating fast - Моё сердце бьётся быстро.
 
+Back [bæk]
+?
+Спина
+Пример: My back hurts - У меня болит спина.
+
+Stomach [ˈstʌmək]
+?
+Живот
+Пример: My stomach is full - Мой живот полон.
+
+Knee [ni:]
+?
+Колено
+Пример: He hurt his knee - Он ушиб колено.
+
 ## Одежда
 Clothes [kləʊðz]
 ?
@@ -382,6 +492,26 @@ Hat [hæt]
 ?
 Шляпа
 Пример: He wears a hat in summer - Летом он носит шляпу.
+
+T-shirt [ˈti:ʃɜ:t]
+?
+Футболка
+Пример: I like this T-shirt - Мне нравится эта футболка.
+
+Skirt [skɜ:t]
+?
+Юбка
+Пример: She has a long skirt - У неё длинная юбка.
+
+Sweater [ˈswetə]
+?
+Свитер
+Пример: This sweater is warm - Этот свитер тёплый.
+
+Bag [bæɡ]
+?
+Сумка
+Пример: Where is my bag? - Где моя сумка?.
 
 ## Дом и мебель
 House [haʊs]
@@ -458,6 +588,36 @@ Mirror [ˈmɪr.ər]
 ?
 Зеркало
 Пример: I look at myself in the mirror - Я смотрю на себя в зеркало.
+
+Bathroom [ˈbɑ:θru:m]
+?
+Ванная
+Пример: The bathroom is clean - Ванная чистая.
+
+Floor [flɔ:]
+?
+Пол/Этаж
+Пример: I live on the second floor - Я живу на втором этаже.
+
+Wall [wɔ:l]
+?
+Стена
+Пример: There is a picture on the wall - На стене картина.
+
+Garden [ˈɡɑ:dn]
+?
+Сад
+Пример: We have a small garden - У нас маленький сад.
+
+Key [ki:]
+?
+Ключ
+Пример: I can't find my key - Я не могу найти ключ.
+
+Fridge [frɪdʒ]
+?
+Холодильник
+Пример: The milk is in the fridge - Молоко в холодильнике.
 
 ## Еда и напитки
 Food [fu:d]
@@ -579,6 +739,41 @@ Delicious [dɪˈlɪʃ.əs]
 ?
 Вкусный
 Пример: This pizza is delicious - Эта пицца вкусная.
+
+Cake [keɪk]
+?
+Торт
+Пример: This cake is sweet - Этот торт сладкий.
+
+Sandwich [ˈsænwɪtʃ]
+?
+Бутерброд
+Пример: I eat a sandwich for lunch - Я ем бутерброд на обед.
+
+Breakfast [ˈbrekfəst]
+?
+Завтрак
+Пример: I have breakfast at eight - Я завтракаю в восемь.
+
+Lunch [lʌntʃ]
+?
+Обед
+Пример: Let's have lunch together - Давай пообедаем вместе.
+
+Dinner [ˈdɪnə]
+?
+Ужин
+Пример: Dinner is ready - Ужин готов.
+
+Fruit [fru:t]
+?
+Фрукт/Фрукты
+Пример: I eat fruit every day - Я ем фрукты каждый день.
+
+Vegetable [ˈvedʒtəbl]
+?
+Овощ
+Пример: Carrot is a vegetable - Морковь - это овощ.
 
 ## Действия (Глаголы базовые)
 Be [bi:]
@@ -987,6 +1182,76 @@ Weak [wi:k]
 Слабый
 Пример: She feels weak - Она чувствует себя слабо.
 
+Cheap [tʃi:p]
+?
+Дешёвый
+Пример: This bag is cheap - Эта сумка дешёвая.
+
+Expensive [ɪkˈspensɪv]
+?
+Дорогой
+Пример: This car is expensive - Эта машина дорогая.
+
+Full [fʊl]
+?
+Полный/Сытый
+Пример: The glass is full - Стакан полный.
+
+Empty [ˈempti]
+?
+Пустой
+Пример: The fridge is empty - Холодильник пустой.
+
+Heavy [ˈhevi]
+?
+Тяжёлый
+Пример: This box is heavy - Эта коробка тяжёлая.
+
+Busy [ˈbɪzi]
+?
+Занятой
+Пример: I am busy today - Я сегодня занят.
+
+Free [fri:]
+?
+Свободный/Бесплатный
+Пример: Are you free tonight? - Ты свободен сегодня вечером?.
+
+Ready [ˈredi]
+?
+Готовый
+Пример: Are you ready? - Ты готов?.
+
+Important [ɪmˈpɔ:tnt]
+?
+Важный
+Пример: This is very important - Это очень важно.
+
+Different [ˈdɪfrənt]
+?
+Разный/Другой
+Пример: We are very different - Мы очень разные.
+
+Right [raɪt]
+?
+Правильный/Правый
+Пример: You are right - Ты прав.
+
+Wrong [rɒŋ]
+?
+Неправильный
+Пример: This answer is wrong - Этот ответ неправильный.
+
+Early [ˈɜ:li]
+?
+Ранний/Рано
+Пример: I get up early - Я встаю рано.
+
+Late [leɪt]
+?
+Поздний/Поздно
+Пример: Sorry, I am late - Извини, я опоздал.
+
 ## Время
 Time [taɪm]
 ?
@@ -1092,6 +1357,46 @@ Now [naʊ]
 ?
 Сейчас
 Пример: I am busy now - Я сейчас занят.
+
+Minute [ˈmɪnɪt]
+?
+Минута
+Пример: Wait a minute - Подожди минуту.
+
+Weekend [ˌwi:kˈend]
+?
+Выходные
+Пример: See you at the weekend - Увидимся на выходных.
+
+Always [ˈɔ:lweɪz]
+?
+Всегда
+Пример: I always drink coffee in the morning - Я всегда пью кофе утром.
+
+Often [ˈɒfn]
+?
+Часто
+Пример: We often go to the park - Мы часто ходим в парк.
+
+Sometimes [ˈsʌmtaɪmz]
+?
+Иногда
+Пример: Sometimes I cook dinner - Иногда я готовлю ужин.
+
+Never [ˈnevə]
+?
+Никогда
+Пример: I never eat meat - Я никогда не ем мясо.
+
+Usually [ˈju:ʒuəli]
+?
+Обычно
+Пример: I usually walk to work - Обычно я хожу на работу пешком.
+
+Again [əˈɡen]
+?
+Снова/Ещё раз
+Пример: Please say it again - Пожалуйста, скажи это снова.
 
 ## Числа и количество
 Many [ˈmen.i]
@@ -1255,6 +1560,26 @@ Hotel [həʊˈtel]
 Отель
 Пример: We stayed at a nice hotel - Мы остановились в хорошем отеле.
 
+Country [ˈkʌntri]
+?
+Страна/Деревня
+Пример: Russia is a big country - Россия - большая страна.
+
+Village [ˈvɪlɪdʒ]
+?
+Деревня
+Пример: My grandmother lives in a village - Моя бабушка живёт в деревне.
+
+Road [rəʊd]
+?
+Дорога
+Пример: This road is long - Эта дорога длинная.
+
+Office [ˈɒfɪs]
+?
+Офис
+Пример: I work in an office - Я работаю в офисе.
+
 ## Животные
 Animal [ˈæn.ɪ.məl]
 ?
@@ -1311,6 +1636,21 @@ Monkey [ˈmʌŋ.ki]
 ?
 Обезьяна
 Пример: Monkeys are clever - Обезьяны умны.
+
+Mouse [maʊs]
+?
+Мышь
+Пример: The cat sees a mouse - Кошка видит мышь.
+
+Pig [pɪɡ]
+?
+Свинья
+Пример: The pig is pink - Свинья розовая.
+
+Rabbit [ˈræbɪt]
+?
+Кролик
+Пример: The rabbit eats a carrot - Кролик ест морковку.
 
 ## Природа и погода
 Weather [ˈweð.ər]
@@ -1418,6 +1758,16 @@ Winter [ˈwɪn.tər]
 Зима
 Пример: It snows in winter - Зимой идёт снег.
 
+Lake [leɪk]
+?
+Озеро
+Пример: We swim in the lake - Мы плаваем в озере.
+
+Fire [ˈfaɪə]
+?
+Огонь
+Пример: The fire is warm - Огонь тёплый.
+
 ## Школа и образование
 Book [bʊk]
 ?
@@ -1483,6 +1833,26 @@ Student [ˈstju:.dənt]
 ?
 Студент/Ученик
 Пример: She is a good student - Она хорошая ученица.
+
+Word [wɜ:d]
+?
+Слово
+Пример: I learn ten words a day - Я учу десять слов в день.
+
+Question [ˈkwestʃən]
+?
+Вопрос
+Пример: Can I ask a question? - Можно задать вопрос?.
+
+Language [ˈlæŋɡwɪdʒ]
+?
+Язык
+Пример: English is a beautiful language - Английский - красивый язык.
+
+Dictionary [ˈdɪkʃənri]
+?
+Словарь
+Пример: Look in the dictionary - Посмотри в словаре.
 
 ## Профессии
 Engineer [ˌen.dʒɪˈnɪr]
@@ -1663,6 +2033,106 @@ Enjoy [ɪnˈdʒɔɪ]
 Наслаждаться/Нравиться
 Пример: I enjoy swimming - Мне нравится плавание.
 
+Make [meɪk]
+?
+Делать/Создавать
+Пример: I make tea every morning - Я делаю чай каждое утро.
+
+Get [ɡet]
+?
+Получать
+Пример: I get a lot of messages - Я получаю много сообщений.
+
+Say [seɪ]
+?
+Сказать
+Пример: Say it again, please - Скажи это ещё раз, пожалуйста.
+
+Bring [brɪŋ]
+?
+Приносить
+Пример: Bring me some water - Принеси мне воды.
+
+Send [send]
+?
+Отправлять
+Пример: Send me a photo - Отправь мне фото.
+
+Show [ʃəʊ]
+?
+Показывать
+Пример: Show me your city - Покажи мне свой город.
+
+Try [traɪ]
+?
+Пробовать/Стараться
+Пример: Try this soup - Попробуй этот суп.
+
+Use [ju:z]
+?
+Использовать
+Пример: I use my phone every day - Я пользуюсь телефоном каждый день.
+
+Play [pleɪ]
+?
+Играть
+Пример: Children play in the park - Дети играют в парке.
+
+Live [lɪv]
+?
+Жить
+Пример: I live in a big city - Я живу в большом городе.
+
+Leave [li:v]
+?
+Уходить/Оставлять
+Пример: I leave home at nine - Я выхожу из дома в девять.
+
+Meet [mi:t]
+?
+Встречать
+Пример: Nice to meet you - Приятно познакомиться.
+
+Visit [ˈvɪzɪt]
+?
+Навещать/Посещать
+Пример: I visit my grandmother on Sunday - Я навещаю бабушку в воскресенье.
+
+Travel [ˈtrævl]
+?
+Путешествовать
+Пример: I like to travel - Я люблю путешествовать.
+
+Sing [sɪŋ]
+?
+Петь
+Пример: She sings very well - Она очень хорошо поёт.
+
+Draw [drɔ:]
+?
+Рисовать
+Пример: My son likes to draw - Мой сын любит рисовать.
+
+Feel [fi:l]
+?
+Чувствовать
+Пример: I feel good today - Я сегодня хорошо себя чувствую.
+
+Change [tʃeɪndʒ]
+?
+Менять
+Пример: I want to change my job - Я хочу сменить работу.
+
+Wear [weə]
+?
+Носить (одежду)
+Пример: I wear a coat in winter - Зимой я ношу пальто.
+
+Call [kɔ:l]
+?
+Звонить/Звать
+Пример: Call me tomorrow - Позвони мне завтра.
+
 ## Услуги и покупки
 Buy [baɪ]
 ?
@@ -1801,6 +2271,31 @@ After [ˈɑ:f.tər]
 После
 Пример: Let's meet after work - Давайте встретимся после работы.
 
+Near [nɪə]
+?
+Рядом/Около
+Пример: The shop is near my house - Магазин рядом с моим домом.
+
+Behind [bɪˈhaɪnd]
+?
+За/Позади
+Пример: The cat is behind the sofa - Кошка за диваном.
+
+Next to [ˈnekst tə]
+?
+Рядом с
+Пример: Sit next to me - Сядь рядом со мной.
+
+Here [hɪə]
+?
+Здесь/Сюда
+Пример: Come here, please - Иди сюда, пожалуйста.
+
+There [ðeə]
+?
+Там/Туда
+Пример: The bank is over there - Банк вон там.
+
 ## Вежливость и повседневные фразы
 Hello [həˈləʊ]
 ?
@@ -1871,6 +2366,175 @@ Good evening [ɡʊd ˈi:.vnɪŋ]
 ?
 Добрый вечер
 Пример: Good evening, everyone - Добрый вечер, все.
+
+Welcome [ˈwelkəm]
+?
+Добро пожаловать
+Пример: Welcome to our home - Добро пожаловать к нам домой.
+
+## Цвета
+Red [red]
+?
+Красный
+Пример: I have a red car - У меня красная машина.
+
+Blue [blu:]
+?
+Синий/Голубой
+Пример: The sky is blue - Небо голубое.
+
+Green [ɡri:n]
+?
+Зелёный
+Пример: The grass is green - Трава зелёная.
+
+Yellow [ˈjeləʊ]
+?
+Жёлтый
+Пример: The banana is yellow - Банан жёлтый.
+
+Black [blæk]
+?
+Чёрный
+Пример: I like black coffee - Я люблю чёрный кофе.
+
+White [waɪt]
+?
+Белый
+Пример: Snow is white - Снег белый.
+
+Brown [braʊn]
+?
+Коричневый
+Пример: My dog is brown - Моя собака коричневая.
+
+Grey [ɡreɪ]
+?
+Серый
+Пример: The sky is grey today - Сегодня небо серое.
+
+## Транспорт
+Car [kɑ:]
+?
+Машина
+Пример: My car is new - Моя машина новая.
+
+Bus [bʌs]
+?
+Автобус
+Пример: I go to work by bus - Я езжу на работу на автобусе.
+
+Bike [baɪk]
+?
+Велосипед
+Пример: I ride a bike in summer - Летом я катаюсь на велосипеде.
+
+Plane [pleɪn]
+?
+Самолёт
+Пример: The plane is in the sky - Самолёт в небе.
+
+Ship [ʃɪp]
+?
+Корабль
+Пример: The ship is on the sea - Корабль в море.
+
+Taxi [ˈtæksi]
+?
+Такси
+Пример: Let's take a taxi - Давай возьмём такси.
+
+Ticket [ˈtɪkɪt]
+?
+Билет
+Пример: I need a train ticket - Мне нужен билет на поезд.
+
+## Досуг и техника
+Phone [fəʊn]
+?
+Телефон
+Пример: Where is my phone? - Где мой телефон?.
+
+Computer [kəmˈpju:tə]
+?
+Компьютер
+Пример: I work on a computer - Я работаю за компьютером.
+
+Message [ˈmesɪdʒ]
+?
+Сообщение
+Пример: I got your message - Я получил твоё сообщение.
+
+Photo [ˈfəʊtəʊ]
+?
+Фото
+Пример: Look at this photo - Посмотри на это фото.
+
+Music [ˈmju:zɪk]
+?
+Музыка
+Пример: I listen to music every day - Я слушаю музыку каждый день.
+
+Game [ɡeɪm]
+?
+Игра
+Пример: This game is fun - Эта игра весёлая.
+
+Sport [spɔ:t]
+?
+Спорт
+Пример: Football is my favourite sport - Футбол - мой любимый спорт.
+
+Holiday [ˈhɒlədeɪ]
+?
+Отпуск/Праздник
+Пример: We go on holiday in July - Мы едем в отпуск в июле.
+
+## Связующие слова
+And [ænd]
+?
+И
+Пример: Tea and coffee - Чай и кофе.
+
+But [bʌt]
+?
+Но
+Пример: I am tired, but happy - Я устал, но счастлив.
+
+Or [ɔ:]
+?
+Или
+Пример: Tea or coffee? - Чай или кофе?.
+
+Because [bɪˈkɒz]
+?
+Потому что
+Пример: I stay home because I am sick - Я дома, потому что болею.
+
+If [ɪf]
+?
+Если
+Пример: Call me if you are free - Позвони мне, если свободен.
+
+Very [ˈveri]
+?
+Очень
+Пример: It is very cold today - Сегодня очень холодно.
+
+Also [ˈɔ:lsəʊ]
+?
+Также
+Пример: I also like tea - Я также люблю чай.
+
+Too [tu:]
+?
+Тоже/Слишком
+Пример: I like it too - Мне это тоже нравится.
+
+Only [ˈəʊnli]
+?
+Только
+Пример: I have only one brother - У меня только один брат.
 
 ---
 **РЕКОМЕНДАЦИИ ДЛЯ ОБУЧЕНИЯ:**

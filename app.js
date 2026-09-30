@@ -1,4 +1,4 @@
-import { parseWords, myCards, MY_TOPIC, dayKey, addDays, schedule, buildQueue, streak, dayHistory, mergeState, LEARNED_IVL } from './core.js?v=8';
+import { parseWords, myCards, MY_TOPIC, dayKey, addDays, schedule, buildQueue, streak, dayHistory, mergeState, stripDir, LEARNED_IVL } from './core.js?v=9';
 import { mascot, LETTERS } from './mascot.js?v=7';
 import { cloudEnabled, getClient, signInWithGoogle, signOut, pullState, pushState, userProfile } from './cloud.js?v=10';
 
@@ -37,19 +37,29 @@ let pushTimer;
 // ---------- storage ----------
 
 function loadState() {
-  const fallback = { settings: { dir: 'en-ru', newPerDay: 10, theme: 'auto', haptics: true }, progress: { 'en-ru': {}, 'ru-en': {} }, days: {}, mine: {} };
+  const fallback = { settings: { dir: 'en-ru', newPerDay: 10, theme: 'light', haptics: true }, progress: { 'en-ru': {}, 'ru-en': {} }, days: {}, mine: {}, resets: {} };
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY));
     if (!saved) return fallback;
     return {
-      settings: { ...fallback.settings, ...saved.settings },
+      settings: settleTheme({ ...fallback.settings, ...saved.settings }),
       progress: { ...fallback.progress, ...saved.progress },
       days: saved.days || {},
       mine: saved.mine || {},
+      resets: saved.resets || {},
     };
   } catch {
     return fallback;
   }
+}
+
+// Light is the default theme. «Авто» used to be the default, so a stored «Авто» without themeSet was never chosen.
+function settleTheme(s) {
+  if (!s.themeSet) {
+    if (s.theme !== 'dark') s.theme = 'light';
+    s.themeSet = true;
+  }
+  return s;
 }
 
 function saveLocal() {
@@ -109,6 +119,8 @@ const progress = () => state.progress[dir()];
 const today = () => dayKey();
 const todayStats = () => state.days[today()] || { reviewed: 0, new: {} };
 const newLeft = () => state.settings.newPerDay - (todayStats().new?.[dir()] || 0);
+// The daily number of new words is a goal, not a cap: once it is met, each lesson brings another batch.
+const newAllowance = () => (newLeft() > 0 ? newLeft() : state.settings.newPerDay);
 const shortDate = key => `${key.slice(8, 10)}.${key.slice(5, 7)}`;
 
 function esc(s) {
@@ -482,7 +494,7 @@ function claimLocalState(uid) {
 }
 
 function resetLocalProgress() {
-  state = { settings: state.settings, progress: { 'en-ru': {}, 'ru-en': {} }, days: {}, mine: {} };
+  state = { settings: state.settings, progress: { 'en-ru': {}, 'ru-en': {} }, days: {}, mine: {}, resets: {} };
   saveLocal();
   rebuildCards();
   try { sessionStorage.removeItem(SESSION_KEY); } catch {}
@@ -501,6 +513,7 @@ async function runSync() {
     const remote = await pullState(user.id);
     const before = JSON.stringify(state);
     state = mergeState(state, remote);
+    settleTheme(state.settings);
     const changed = JSON.stringify(state) !== before;
     pulled = true;
     if (changed) {
@@ -653,9 +666,11 @@ function renderHome() {
   const p = progress();
   const dueTomorrow = plan.filter(c => p[c.id] && p[c.id].due === tomorrow).length;
   const learning = all.total - all.fresh - all.learned;
+  const extra = remaining ? 0 : Math.min(limit, all.fresh);
 
   let bubble;
-  if (!remaining && doneToday) bubble = 'Всё на сегодня! Слова закреплены — увидимся завтра.';
+  if (extra) bubble = 'Цель на сегодня выполнена! Хочешь выучить ещё?';
+  else if (!remaining && doneToday) bubble = 'Всё на сегодня! Слова закреплены — увидимся завтра.';
   else if (!remaining) bubble = 'На сегодня карточек нет. Можно отдохнуть!';
   else if (doneToday) bubble = `Уже ${doneToday}! Осталось ${remaining} — добьём?`;
   else bubble = `Сегодня ${remaining} ${cardsWord(remaining)}. Начнём?`;
@@ -690,7 +705,9 @@ function renderHome() {
       </div>
       ${remaining
         ? `<label class="btn primary block" role="button" data-study="*">${HX()}${ICONS.play}Начать урок</label>`
-        : '<button type="button" class="btn primary block" disabled>На сегодня всё</button>'}
+        : extra
+          ? `<label class="btn primary block" role="button" data-study="*">${HX()}${ICONS.play}Ещё ${extra} ${plural(extra, 'слово', 'слова', 'слов')}</label>`
+          : '<button type="button" class="btn primary block" disabled>На сегодня всё</button>'}
     </section>
 
     <section class="card-surface pad">
@@ -741,8 +758,8 @@ function renderHome() {
 function startSession(key) {
   const topic = key === '*' ? null : topics.find(t => t.name === key);
   const list = topic ? topic.cards : planCards();
-  // The user chose to drill words they added themselves, so the daily new-word limit doesn't hold them back.
-  const queue = buildQueue(list, progress(), today(), topic?.mine ? Infinity : newLeft());
+  // The user chose to drill words they added themselves, so all of them come at once.
+  const queue = buildQueue(list, progress(), today(), topic?.mine ? Infinity : newAllowance());
   session = {
     dir: dir(),
     queue,
@@ -769,7 +786,7 @@ function renderDone() {
       <h1>${had ? 'Урок пройден!' : 'Здесь пока пусто'}</h1>
       <p class="muted">${had
         ? `${LETTER === 'A' ? 'Эй' : `Буква ${LETTER}`} гордится тобой. Слова вернутся, когда их пора будет повторить.`
-        : 'Все карточки на сегодня пройдены или закончился лимит новых слов. Его можно поменять в профиле.'}</p>
+        : 'Здесь все слова уже в работе, а повторять их пока рано. Загляни позже или выбери другую тему.'}</p>
       ${had ? `
         <div class="done-stats">
           <div><b>${session.total}</b><span>${cardsWord(session.total)}</span></div>
@@ -857,7 +874,8 @@ function grade(known) {
   day.reviewed += 1;
   const bucket = known ? day.known : day.wrong;
   bucket[d] = (bucket[d] || 0) + 1;
-  p[card.id] = schedule(p[card.id], known, t);
+  // `at` lets a later progress reset on another device tell this answer is older than the reset.
+  p[card.id] = { ...schedule(p[card.id], known, t), at: Date.now() };
 
   const st = topicStats(cards);
   day.snap = { ...day.snap, [d]: { learned: st.learned, started: st.total - st.fresh } };
@@ -1518,13 +1536,13 @@ function renderSettings() {
         </div>
       </div>
       <div class="group-row stack">
-        <span>Новых слов в день</span>
+        <span>Цель: новых слов в день</span>
         <div class="segmented">
           ${NEW_OPTIONS.map(n => `<button type="button" class="${state.settings.newPerDay === n ? 'on' : ''}" aria-pressed="${state.settings.newPerDay === n}" data-new="${n}">${n}</button>`).join('')}
         </div>
       </div>
     </section>
-    <p class="group-note">Прогресс по каждому направлению считается отдельно.</p>
+    <p class="group-note">Это цель, а не лимит: выполнив её, можно учить дальше. Прогресс по каждому направлению считается отдельно.</p>
 
     <h2 class="group-title">Озвучка</h2>
     <section class="card-surface group">
@@ -1549,15 +1567,20 @@ function renderSettings() {
 
 async function resetProgress() {
   if (!await ask({ title: `Сбросить прогресс ${DIRS[dir()]}?`, message: 'Все ответы по этому направлению удалятся. Это нельзя отменить.', action: 'Сбросить', destructive: true })) return;
-  state.progress[dir()] = {};
-  for (const day of Object.values(state.days)) if (day.snap) delete day.snap[dir()];
+  const d = dir();
+  state.progress[d] = {};
+  state.resets = { ...state.resets, [d]: Date.now() };
+  // Today's counters go too, otherwise the used-up daily goal would still show on the home screen.
+  for (const k of Object.keys(state.days)) state.days[k] = stripDir(state.days[k], d);
+  try { sessionStorage.removeItem(SESSION_KEY); } catch {}
   saveState();
   renderSettings();
-  toast('Прогресс сброшен');
+  toast('Прогресс сброшен — можно начинать заново');
 }
 
 // ---------- navigation ----------
 
+const TAB_SCREENS = ['home', 'dict', 'stats', 'settings'];
 const SCREENS = { onboarding: renderOnboarding, wait: renderWait, home: renderHome, study: renderStudy, stats: renderStats, settings: renderSettings, dict: renderDict, word: renderWord };
 
 function show(name) {
@@ -1583,24 +1606,45 @@ function show(name) {
     SCREENS[screen]();
     window.scrollTo(0, 0);
   };
-  if (prev && prev !== screen && document.startViewTransition && !REDUCED_MOTION.matches) document.startViewTransition(render);
+  // Tabs switch instantly, as in iOS; the cross-fade is kept for opening a lesson or a word.
+  const tabSwitch = TAB_SCREENS.includes(prev) && TAB_SCREENS.includes(screen);
+  if (prev && prev !== screen && !tabSwitch && document.startViewTransition && !REDUCED_MOTION.matches) document.startViewTransition(render);
   else render();
 }
 
 // A finger that lands on the page while it is still gliding (or drags before lifting) is scrolling, not pressing.
+// The fixed tab bar doesn't scroll, so it answers at once, like a native tab bar.
 // The touchstart listener also lets iPhone show the :active pressed state.
 let touch = null;
 let lastScroll = -Infinity;
+let armed = null;
+let disarmTimer;
+// The invisible haptic switch ignores the finger until it is armed here: a native switch that receives the touch
+// itself grabs the drag, and a list covered with them can't be scrolled. Arming on touchstart still lets
+// the tap that follows land on the switch and vibrate.
+function disarm() {
+  clearTimeout(disarmTimer);
+  armed?.classList.remove('armed');
+  armed = null;
+}
 addEventListener('scroll', () => { lastScroll = performance.now(); }, { capture: true, passive: true });
 addEventListener('touchstart', e => {
   const t = e.touches[0];
   const now = performance.now();
-  touch = { x: t.clientX, y: t.clientY, at: now, moved: false, gliding: now - lastScroll < 100 };
+  const inTabs = !!e.target.closest?.('#tabs');
+  touch = { x: t.clientX, y: t.clientY, at: now, moved: false, gliding: !inTabs && now - lastScroll < 100 };
+  disarm();
+  if (e.touches.length === 1 && !touch.gliding) {
+    armed = e.target.closest?.('label, #splash')?.querySelector(':scope > .hx') || null;
+    armed?.classList.add('armed');
+  }
 }, { capture: true, passive: true });
 addEventListener('touchmove', e => {
   const t = e.touches[0];
-  if (touch && Math.hypot(t.clientX - touch.x, t.clientY - touch.y) > 8) touch.moved = true;
+  if (touch && Math.hypot(t.clientX - touch.x, t.clientY - touch.y) > 8) { touch.moved = true; disarm(); }
 }, { capture: true, passive: true });
+addEventListener('touchend', () => { clearTimeout(disarmTimer); disarmTimer = setTimeout(disarm, 700); }, { capture: true, passive: true });
+addEventListener('touchcancel', disarm, { capture: true, passive: true });
 const scrollTap = () => !!touch && performance.now() - touch.at < 1500 && (touch.moved || touch.gliding);
 
 document.addEventListener('click', e => {
@@ -1638,7 +1682,7 @@ function act(el) {
   if (d.action === 'save-word') { saveWord(); return; }
   if (d.action === 'delete-word') { deleteWord(); return; }
   if (d.action === 'autofill') { autofill(el); return; }
-  if (d.action === 'reload') { location.reload(); return; }
+  if (d.action === 'reload') { reloadWords(el); return; }
   if (d.action === 'reset') { resetProgress(); return; }
   if (d.reveal !== undefined && session && !session.revealed && !grading) {
     haptic();
@@ -1648,13 +1692,36 @@ function act(el) {
   }
 }
 
+async function loadWords() {
+  const res = await fetch('words.md', { cache: 'no-cache' });
+  if (!res.ok) throw new Error(res.status);
+  baseCards = parseWords(await res.text());
+}
+
+async function reloadWords(btn) {
+  if (btn.disabled) return;
+  const before = new Set(baseCards.map(c => c.id));
+  btn.disabled = true;
+  btn.textContent = 'Обновляю…';
+  try {
+    await loadWords();
+  } catch {
+    toast('Нет связи — не получилось обновить словарь', 'sad');
+    renderSettings();
+    return;
+  }
+  rebuildCards();
+  if (screen === 'settings') renderSettings();
+  const added = baseCards.filter(c => !before.has(c.id)).length;
+  haptic('success');
+  toast(added ? `Добавлено ${added} ${plural(added, 'новое слово', 'новых слова', 'новых слов')}` : 'Словарь уже свежий — новых слов нет', 'happy');
+}
+
 async function init() {
   const clientReady = cloudEnabled ? getClient() : null;
   clientReady?.catch(() => {});
   try {
-    const res = await fetch('words.md', { cache: 'no-cache' });
-    if (!res.ok) throw new Error(res.status);
-    baseCards = parseWords(await res.text());
+    await loadWords();
   } catch {
     app.innerHTML = `<div class="empty card-surface">${buddy('sad', 72)}<p>Не удалось загрузить словарь. Проверь интернет и обнови страницу.</p></div>`;
     return;

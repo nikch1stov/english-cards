@@ -142,10 +142,38 @@ function mergeDay(a, b) {
   };
 }
 
+// Removes one direction's answers from a day's counters (used by a progress reset).
+export function stripDir(day, dir) {
+  const out = { ...day };
+  for (const f of ['new', 'known', 'wrong', 'snap']) {
+    if (out[f]?.[dir] === undefined) continue;
+    out[f] = { ...out[f] };
+    delete out[f][dir];
+  }
+  return out;
+}
+
+// A reset made on one device wins over older answers still kept by another device or the cloud.
+function dropBeforeReset(side, resets) {
+  const own = side.resets || {};
+  const progress = { ...side.progress };
+  const days = { ...side.days };
+  for (const [dir, at] of Object.entries(resets)) {
+    if ((own[dir] || 0) >= at) continue;
+    const cutoff = dayKey(new Date(at));
+    progress[dir] = Object.fromEntries(Object.entries(progress[dir] || {}).filter(([, p]) => (p.at || 0) > at));
+    for (const k of Object.keys(days)) if (k <= cutoff) days[k] = stripDir(days[k], dir);
+  }
+  return { ...side, progress, days };
+}
+
 // Combines this device's progress with the cloud copy without losing answers from either side.
 export function mergeState(local, remote) {
   if (!remote?.progress) return local;
   const localEmpty = !Object.values(local.progress || {}).some(p => Object.keys(p).length);
+  const resets = maxMap(local.resets, remote.resets);
+  local = dropBeforeReset(local, resets);
+  remote = dropBeforeReset(remote, resets);
   const progress = {};
   for (const dir of new Set([...Object.keys(local.progress || {}), ...Object.keys(remote.progress)])) {
     progress[dir] = mergeCards(local.progress?.[dir], remote.progress[dir]);
@@ -165,6 +193,7 @@ export function mergeState(local, remote) {
     progress,
     days,
     mine,
+    resets,
   };
 }
 

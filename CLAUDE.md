@@ -16,7 +16,10 @@ Flashcard PWA for learning English words on iPhone (Russian UI). Vanilla JS, no 
 - `supabase-js` is pinned (currently 2.117.2 in `cloud.js`); upgrade deliberately.
 - Card ids are the lowercased English word (`#2` for duplicates); renaming a word resets its progress. Own words live in `state.mine` with ids `my:<random>`; deletions are tombstones.
 - Never use `window.confirm`; use `ask()` in `app.js` (iOS-style alert with a specific action verb).
-- Tappable controls are `<label role="button">` with the invisible `.hx` switch from `HX()` on top — the only way to get haptics on iPhone. The click handler must not `preventDefault` on `.hx` and defers the action with `setTimeout`.
+- Tappable controls are `<label role="button">` with the invisible `.hx` switch from `HX()` on top — the only way to get haptics on iPhone. The click handler must not `preventDefault` on `.hx` and defers the action with `setTimeout`. `.hx` has `pointer-events: none` until `touchstart` arms it (`.armed`), because a native switch that gets the touch itself swallows the scroll gesture.
+- The «новых слов в день» setting is a daily goal, not a cap: after it is met, lessons and topics bring another batch (`newAllowance()`).
+- A progress reset is recorded in `state.resets[dir]`, and `mergeState` drops older answers (`at` timestamp) from other devices and the cloud.
+- The default theme is light (`settleTheme()`); tabs switch without a view transition.
 - Taps are ignored when the finger moved > 8 px or the page scrolled < 100 ms before the touch (`scrollTap`). Tests must scroll a target to the centre and wait before tapping.
 - Never commit secrets: only the Supabase publishable key belongs in `config.js`. No `sb_secret`, `service_role`, personal access tokens or Google client secrets.
 

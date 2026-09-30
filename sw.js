@@ -1,4 +1,4 @@
-const CACHE = 'english-cards-v22';
+const CACHE = 'english-cards-v23';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'core.js', 'mascot.js', 'cloud.js', 'config.js', 'manifest.webmanifest', 'icon.svg', 'icon-180.png', 'words.md'];
 // Pages and the word list change without a new URL, so they are fetched fresh; everything else is versioned.
 const FRESH = /\/(index\.html|words\.md|manifest\.webmanifest)?$/;
